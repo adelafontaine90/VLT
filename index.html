@@ -223,15 +223,17 @@ async function kvSet(k,v){mem.set(k,v);try{const db=await idb();await new Promis
 async function kvDel(k){mem.delete(k);try{const db=await idb();await new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').delete(k);t.oncomplete=res;t.onerror=()=>rej(t.error)})}catch(e){}}
 
 function defaultState(){return{
-  v:1,settings:{author:'',role:'Référent prévention & Sécurité',company:'Derichebourg Belgium',logo:null,alertDays:45,nextNum:1},
+  v:1,settings:{author:'',role:'Référent prévention & Sécurité',company:'Derichebourg Belgium',logo:null,alertDays:45,nextNum:1,ctlStart:today().slice(0,7)},
   sites:SITE_NAMES.map(n=>({id:n,name:n,resp:'',diffusion:'',modules:[]})),
-  responsables:[],visits:[],actions:[],visitHistory:[],draftId:null}}
+  responsables:[],visits:[],actions:[],visitHistory:[],draftId:null,firstAid:[],boxes:[],boxChecks:[],ctlDraftId:null}}
 let state=defaultState();
 let saveT=null;
 function save(){clearTimeout(saveT);saveT=setTimeout(()=>kvSet('state',JSON.parse(JSON.stringify(state))),250)}
 function normalize(s){const d=defaultState();const o=Object.assign(d,s||{});o.settings=Object.assign(defaultState().settings,o.settings||{});
   o.sites=(o.sites&&o.sites.length?o.sites:d.sites).map(x=>Object.assign({resp:'',diffusion:'',modules:[]},x));
-  ['responsables','visits','actions','visitHistory'].forEach(k=>{if(!Array.isArray(o[k]))o[k]=[]});
+  ['responsables','visits','actions','visitHistory','firstAid','boxes','boxChecks'].forEach(k=>{if(!Array.isArray(o[k]))o[k]=[]});
+  const PER=['Désinfectant','Compresses 5x5','Compresses 10x10','Pansements doigts','Pansement compressif',"Compresses d'urgences",'Gel','Eye & Wound Cleansing spray','Poche de froid','Gants en nitrile'];o.firstAid.forEach(it=>{if(it.exp===undefined)it.exp=PER.includes(it.name)});
+  if(o.ctlDraftId&&!o.boxChecks.find(c=>c.id===o.ctlDraftId&&c.status==='draft'))o.ctlDraftId=null;
   const mx=o.actions.reduce((m,a)=>Math.max(m,a.num||0),0);o.settings.nextNum=Math.max(o.settings.nextNum||1,mx+1);
   if(o.draftId&&!o.visits.find(v=>v.id===o.draftId&&v.status==='draft'))o.draftId=null;return o}
 const site=id=>state.sites.find(s=>s.id===id)||{id,name:id,modules:[]};
@@ -253,8 +255,8 @@ function siteCounts(siteId){const a=state.actions.filter(x=>x.site===siteId);ret
 let view='hub', viewArg=null, openSec=null;
 function go(v,arg){view=v;viewArg=arg;render();window.scrollTo(0,0)}
 function setHeader(t,sub){$('#title').textContent=t;$('#subtitle').textContent=sub||''}
-function render(){document.querySelectorAll('nav.bottom button').forEach(b=>b.setAttribute('aria-current',b.dataset.nav===({setup:'home',visit:'home',finish:'home',done:'home',controls:'hub'}[view]||view)?'page':'false'));
-  ({hub:vHub,controls:vControls,home:vHome,setup:vSetup,visit:vVisit,finish:vFinish,done:vDone,actions:vActions,export:vExport,settings:vSettings})[view]()}
+function render(){document.querySelectorAll('nav.bottom button').forEach(b=>b.setAttribute('aria-current',b.dataset.nav===({setup:'home',visit:'home',finish:'home',done:'home',controls:'hub',boxes:'hub',bxcheck:'hub',bxdone:'hub'}[view]||view)?'page':'false'));
+  ({hub:vHub,controls:vControls,boxes:vBoxes,bxcheck:vBoxCheck,bxdone:vBoxDone,home:vHome,setup:vSetup,visit:vVisit,finish:vFinish,done:vDone,actions:vActions,export:vExport,settings:vSettings})[view]()}
 
 function vHub(){setHeader('Prévention & sécurité',fmt(today()));
   const acts=state.actions;const late=acts.filter(a=>situation(a)==='En retard').length,open=acts.filter(a=>situation(a)==='Ouverte').length+late;
@@ -265,13 +267,7 @@ function vHub(){setHeader('Prévention & sécurité',fmt(today()));
    <button class="hub" data-nav="home"><span class="hub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M8.5 12l2 2 4-4"/></svg></span><span class="grow"><span class="hub-t">Rapports de visite</span><span class="hub-s">Visites sécurité des ${state.sites.length} sites</span>
      <span class="row" style="gap:6px;margin-top:6px">${draft?`<span class="pill warn">Visite en cours : ${esc(site(draft.site).name)}</span>`:''}<span class="pill open">${open} actions ouvertes</span>${late?`<span class="pill late">${late} en retard</span>`:''}</span></span></button>
    <button class="hub" data-nav="controls"><span class="hub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-4.5"/></svg></span><span class="grow"><span class="hub-t">Contrôles internes</span><span class="hub-s">${ctl.map(c=>c[0]).join(' · ')}</span>
-     <span class="row" style="gap:6px;margin-top:6px"><span class="pill na">En préparation</span></span></span></button></div>`}
-function vControls(){setHeader('Contrôles internes');
-  const ctl=[['Moyens d\'extinction','Extincteurs, RIA, bornes incendie'],['Boîtes de secours','Contenu complet, dates de péremption'],['Échelles','État, stabilité, identification'],['Compresseurs','État, sécurités, contrôles']];
-  $('#app').innerHTML=`<div class="stack"><div class="card hint">Ce module arrive bientôt : inventaire par site, fréquence de contrôle par type, alertes d'échéance, historique par équipement, et un NOK crée une action dans le même plan d'actions.</div>
-   ${ctl.map(([t,s])=>`<div class="site" style="cursor:default"><div class="grow"><div class="nm">${t}</div><div class="meta">${s}</div><div class="meta">Fréquence : à définir</div></div><span class="pill na">Bientôt</span></div>`).join('')}
-   <button class="btn" data-nav="hub">Retour à l'accueil</button></div>`}
-
+     <span class="row" style="gap:6px;margin-top:6px">${(()=>{const bs=boxSites(),m=ym(today()),d=bs.filter(x=>['ok','inc'].includes(bxSiteStatus(x.id,m).state)).length;return bs.length?`<span class="pill ${d===bs.length?'closed':'open'}">Boîtes de secours : ${d}/${bs.length} ce mois</span>`:'<span class="pill na">En préparation</span>'})()}</span></span></button></div>`}
 function vHome(){setHeader('Visites sécurité',fmt(today()));
   const acts=state.actions;const open=acts.filter(a=>situation(a)==='Ouverte').length,late=acts.filter(a=>situation(a)==='En retard').length;
   const draft=state.draftId&&state.visits.find(v=>v.id===state.draftId);
@@ -388,6 +384,10 @@ function vSettings(){setHeader('Réglages');const S=state.settings;
     <span class="lbl">Équipements contrôlés</span><div class="modlist">${s.modules.map(m=>`<span>${esc(m.label)}<button data-act="delmod" data-site="${esc(s.id)}" data-key="${esc(m.key)}" aria-label="Retirer ${esc(m.label)}">×</button></span>`).join('')||'<span class="hint">Aucun</span>'}</div>
     <div class="row"><select id="ss-t${i}" style="max-width:150px" aria-label="Type d'équipement"><option value="machine">Machine</option><option value="vhu">VHU</option><option value="camions">Camions</option></select><input type="text" id="ss-l${i}" class="grow" placeholder="ex. Presse 2" aria-label="Nom de l'équipement" style="flex:1;width:auto"><button class="btn small" data-act="addmod" data-site="${esc(s.id)}" data-i="${i}">Ajouter</button></div>
   </div></details>`).join('')}
+  <h2>Boîtes de secours</h2>${state.sites.map((s,i)=>`<details class="cfg"><summary>${esc(s.name)} <span class="hint">· ${boxesOf(s.id).length} boîte(s)</span></summary><div class="in">
+    ${boxesOf(s.id).map(bx=>`<div class="row"><span class="grow">${esc(bx.loc)}</span><button class="btn small" data-act="bxren" data-box="${bx.id}">Renommer</button><button class="btn small danger" data-act="bxrm" data-box="${bx.id}">Retirer</button></div>`).join('')||'<span class="hint">Aucune boîte</span>'}
+    <div class="row"><input type="text" id="nb-${i}" class="grow" placeholder="Emplacement, ex. Bureau bascule" style="flex:1;width:auto" aria-label="Emplacement de la nouvelle boîte"><button class="btn small" data-act="bxaddbox" data-site="${esc(s.id)}" data-i="${i}">Ajouter</button></div></div></details>`).join('')}
+  <div class="field"><label for="s-ctl">Début du suivi des contrôles (mois)</label><input type="month" id="s-ctl" value="${S.ctlStart}" data-sfield="ctlStart"></div>
   <h2>Responsables</h2><div class="card stack"><div class="modlist">${state.responsables.map(r=>`<span>${esc(r)}<button data-act="delresp" data-r="${esc(r)}" aria-label="Retirer ${esc(r)}">×</button></span>`).join('')||'<span class="hint">Aucun responsable</span>'}</div>
    <div class="row"><input type="text" id="new-resp" class="grow" placeholder="Prénom + initiale, ex. Marie D." style="flex:1;width:auto" aria-label="Nouveau responsable"><button class="btn small" data-act="addresp">Ajouter</button></div>
    <span class="hint">Prénom + initiale uniquement. Pas d'adresses e-mail : tu transfères les rapports depuis ta boîte du boulot.</span></div>
@@ -438,6 +438,25 @@ document.addEventListener('click',async e=>{const nav=e.target.closest('[data-na
    case 'dropdraft':if(await confirmBox('Supprimer la visite en cours ? Les réponses et photos seront effacées.','Supprimer la visite')){await dropVisit(state.draftId);toast('Visite supprimée');go('home')}break;
    case 'logo':$('#logoInput').value='';$('#logoInput').click();break;
    case 'dellogo':state.settings.logo=null;save();vSettings();break;
+   case 'bxstart':{const sid=b.dataset.site;if(state.ctlDraftId){const d=bxCur();if(d.site===sid)return go('bxcheck');if(!await confirmBox(`Un contrôle est en cours (${site(d.site).name}). Le reprendre ?`,'Reprendre',false))return;return go('bxcheck')}
+     if(bxLastInMonth(sid,ym(today()))&&!await confirmBox(`${site(sid).name} a déjà été contrôlé ce mois-ci. Faire un nouveau contrôle ?`,'Nouveau contrôle',false))return;
+     const c={id:uid(),site:sid,date:today(),status:'draft',res:{}};state.boxChecks.push(c);state.ctlDraftId=c.id;save();go('bxcheck');break}
+   case 'bxresume':go('bxcheck');break;
+   case 'bxdrop':{if(await confirmBox('Supprimer ce contrôle en cours ?','Supprimer')){const c=bxCur();for(const r of Object.values(c.res))for(const p of r.ph||[])await kvDel('photo:'+p);state.boxChecks=state.boxChecks.filter(x=>x.id!==c.id);state.ctlDraftId=null;save();toast('Contrôle supprimé');go('boxes')}break}
+   case 'bxrow':{const r=bxRes(b.dataset.box);r.items=r.items||{};const x=r.items[b.dataset.i]||(r.items[b.dataset.i]={});x.st=x.st===b.dataset.v?null:b.dataset.v;if(x.st==='miss'&&!x.q)x.q=state.firstAid[+b.dataset.i].qty||1;save();bxRefresh(b.dataset.box);break}
+   case 'bxq':{const r=bxRes(b.dataset.box);const x=r.items[b.dataset.i];x.q=Math.max(1,(x.q||1)+(+b.dataset.d));save();bxRefresh(b.dataset.box);break}
+   case 'bxdelph':{const r=bxRes(b.dataset.box);r.ph=(r.ph||[]).filter(x=>x!==b.dataset.ph);await kvDel('photo:'+b.dataset.ph);save();bxRefresh(b.dataset.box);break}
+   case 'bxacton':{const r=bxRes(b.dataset.box);r.act=r.act||{};r.act.on=b.checked;if(r.act.on&&!r.act.text)r.act.text=r.c||'';save();bxRefresh(b.dataset.box);break}
+   case 'bxg':case 'bxp':{const r=bxRes(b.dataset.box);r.act[act==='bxg'?'g':'p']=+b.dataset.n;save();bxRefresh(b.dataset.box);break}
+   case 'bxresp':{const r=bxRes(b.dataset.box);r.act.resp=b.dataset.r;save();b.parentElement.querySelectorAll('.chip').forEach(x=>x.setAttribute('aria-pressed',x===b));break}
+   case 'bxfinish':bxFinish();break;
+   case 'bxsend':bxShare(b.dataset.id,false);break;
+   case 'bxsendboth':bxShare(b.dataset.id,true);break;
+   case 'bxpdf':{const c=state.boxChecks.find(x=>x.id===b.dataset.id);try{const f=await bxFile(c);download(f.name,f)}catch(e){toast("Le rapport n'a pas pu être créé.")}break}
+   case 'bxdel':{if(await confirmBox('Supprimer ce contrôle de boîtes de secours ? Les actions créées restent dans le plan.','Supprimer')){const c=state.boxChecks.find(x=>x.id===b.dataset.id);for(const r of Object.values(c.res))for(const p of r.ph||[])await kvDel('photo:'+p);state.boxChecks=state.boxChecks.filter(x=>x.id!==c.id);save();toast('Contrôle supprimé');vBoxes()}break}
+   case 'bxaddbox':{const sid=b.dataset.site;const inp=document.getElementById('nb-'+b.dataset.i);const loc=inp.value.trim();if(!loc)return;state.boxes.push({id:'bx'+uid(),site:sid,loc});save();vSettings();break}
+   case 'bxren':{const bx=state.boxes.find(x=>x.id===b.dataset.box);const n=await askText('Nouvel emplacement de la boîte',bx.loc);if(n){bx.loc=n;save();vSettings()}break}
+   case 'bxrm':{const bx=state.boxes.find(x=>x.id===b.dataset.box);if(await confirmBox(`Retirer la boîte « ${bx.loc} » (${site(bx.site).name}) ? Son historique reste dans l'Excel.`,'Retirer')){state.boxes=state.boxes.filter(x=>x.id!==bx.id);save();vSettings()}break}
    case 'cancelvisit':if(await confirmBox('Annuler et supprimer cette visite ?','Supprimer la visite')){await dropVisit(state.draftId);go('home')}break;
    case 'ans':{const a=v.answers[b.dataset.key]||{};if(a.v===b.dataset.v){delete a.v}else a.v=b.dataset.v;if(!a.v&&!a.c&&!(a.ph||[]).length)delete v.answers[b.dataset.key];else v.answers[b.dataset.key]=a;save();refreshItem(b.dataset.key);break}
    case 'photo':{photoKey=b.dataset.key;const inp=b.dataset.src==='gal'?$('#galInput'):$('#photoInput');inp.value='';inp.click();break}
@@ -470,6 +489,10 @@ document.addEventListener('click',async e=>{const nav=e.target.closest('[data-na
   }});
 document.addEventListener('toggle',e=>{const d=e.target;if(d.matches&&d.matches('details.sec')&&d.open)openSec=d.dataset.sec},true);
 document.addEventListener('input',e=>{const t=e.target;const v=cur();
+  if(t.dataset.bxc){bxRes(t.dataset.bxc).c=t.value;save();return}
+  if(t.dataset.bxa){const r=bxRes(t.dataset.bxa);r.act=r.act||{};r.act.text=t.value;save();return}
+  if(t.dataset.bxexp){const r=bxRes(t.dataset.bxexp);r.items=r.items||{};const x=r.items[t.dataset.i]||(r.items[t.dataset.i]={});x.exp=t.value||null;save();clearTimeout(window.__bxT);window.__bxT=setTimeout(()=>bxRefresh(t.dataset.bxexp),900);return}
+  if(t.dataset.bxdate){if(t.value){bxCur().date=t.value;save()}return}
   if(t.dataset.field&&v){const a=v.answers[t.dataset.key]||(v.answers[t.dataset.key]={});if(t.dataset.field==='c')a.c=t.value;else{a.act=a.act||{};a.act[t.dataset.field]=t.value}save()}
   else if(t.dataset.bind&&v){v[t.dataset.bind]=t.value;if(t.dataset.bind==='diffusion')site(v.site).diffusion=t.value;save()}
   else if(t.dataset.vfield&&v){v[t.dataset.vfield]=t.value.split('\n').map(x=>x.trim()).filter(Boolean);save()}
@@ -480,7 +503,8 @@ document.addEventListener('change',e=>{const t=e.target;
   else if(t.dataset.sitefield){site(t.dataset.site)[t.dataset.sitefield]=t.value;save()}
   else if(t.dataset.act==='fsite'){filt.site=t.value;vActions()}});
 document.addEventListener('change',e=>{const t=e.target;if(t.matches&&t.matches('input[data-photo-for]')){photoKey=t.dataset.photoFor;addPhoto(t.files[0])}});
-async function addPhoto(f){const v=cur();if(!f||!v||!photoKey)return;if(f.type&&!/^image\//.test(f.type)&&!/\.(jpe?g|png|webp|heic|heif)$/i.test(f.name)){toast('Choisis une photo (JPG ou PNG).');return}
+async function addPhoto(f){if(photoKey&&photoKey.startsWith('box:')){if(!f||!bxCur())return;try{const data=await compress(f,1280,0.72);const id=uid();await kvSet('photo:'+id,data);const r=bxRes(photoKey.slice(4));r.ph=r.ph||[];r.ph.push(id);save();bxRefresh(photoKey.slice(4))}catch(e){toast("La photo n'a pas pu être lue.")}return}
+  const v=cur();if(!f||!v||!photoKey)return;if(f.type&&!/^image\//.test(f.type)&&!/\.(jpe?g|png|webp|heic|heif)$/i.test(f.name)){toast('Choisis une photo (JPG ou PNG).');return}
   try{const data=await compress(f,1280,0.72);const id=uid();await kvSet('photo:'+id,data);const a=v.answers[photoKey]||(v.answers[photoKey]={v:'NOK'});a.ph=a.ph||[];a.ph.push(id);save();refreshItem(photoKey)}catch(err){toast("La photo n'a pas pu être lue. Réessaie.")}}
 $('#photoInput').addEventListener('change',e=>addPhoto(e.target.files[0]));
 $('#galInput').addEventListener('change',e=>addPhoto(e.target.files[0]));
@@ -500,11 +524,177 @@ function finalize(){const v=cur();if(!v)return;const st=visitStats(v);v.stats={o
     state.actions.push(ac);v.actionIds.push(ac.id);a.actionId=ac.id}
   v.status='done';state.draftId=null;save();go('done',v.id)}
 
+
+/* ===================== CONTRÔLES INTERNES · BOÎTES DE SECOURS ===================== */
+const ym=d=>d.slice(0,7);
+const MONTH_FULL=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+function monthLabel(m){const [y,mm]=m.split('-');return MONTH_FULL[+mm-1]+' '+y}
+function boxesOf(siteId){return state.boxes.filter(b=>b.site===siteId)}
+function boxSites(){return state.sites.filter(s=>boxesOf(s.id).length)}
+function bxCur(){return state.boxChecks.find(c=>c.id===state.ctlDraftId)}
+function bxLastInMonth(siteId,m){return state.boxChecks.filter(c=>c.status==='done'&&c.site===siteId&&ym(c.date)===m).sort((a,b)=>a.date<b.date?1:-1)[0]}
+function bxIncomplete(c){return Object.values(c.res||{}).filter(r=>r.st==='nok').length}
+function bxSiteStatus(siteId,m){const c=bxLastInMonth(siteId,m);if(c)return{state:bxIncomplete(c)?'inc':'ok',check:c};
+  if(m<state.settings.ctlStart)return{state:'none'};return{state:m<ym(today())?'late':'todo'}}
+function bxPill(st){return st.state==='ok'?`<span class="pill closed">Fait le ${fmt(st.check.date).slice(0,5)}</span>`:st.state==='inc'?`<span class="pill warn">${bxIncomplete(st.check)} boîte(s) incomplète(s)</span>`:st.state==='late'?'<span class="pill late">En retard</span>':st.state==='todo'?'<span class="pill open">À faire</span>':'<span class="pill na">—</span>'}
+
+function vControls(){setHeader('Contrôles internes');const m=ym(today());const bs=boxSites();const done=bs.filter(s=>['ok','inc'].includes(bxSiteStatus(s.id,m).state)).length;
+  const soon=[['Moyens d\'extinction','Extincteurs, RIA, armoires incendie'],['Bandes transporteuses','Charleroi, Bruxelles, Liège'],['Échelles','Recensement en cours'],['Compresseurs','Fréquence à vérifier'],['Thermographie','Suivi des contrôles externes']];
+  $('#app').innerHTML=`<div class="stack"><div class="hint">Contrôles mensuels · ${monthLabel(m)}</div>
+   <button class="hub" data-nav="boxes"><span class="hub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5h6v2M12 10v7M8.5 13.5h7"/></svg></span><span class="grow"><span class="hub-t">Boîtes de secours</span><span class="hub-s">${state.boxes.length} boîtes sur ${bs.length} sites</span>
+    <span class="row" style="gap:6px;margin-top:6px"><span class="pill ${done===bs.length&&bs.length?'closed':'open'}">${done}/${bs.length} sites contrôlés ce mois</span>${state.ctlDraftId?'<span class="pill warn">Contrôle en cours</span>':''}</span></span></button>
+   ${soon.map(([t,s])=>`<div class="site" style="cursor:default"><div class="grow"><div class="nm">${t}</div><div class="meta">${s}</div></div><span class="pill na">Bientôt</span></div>`).join('')}
+   <button class="btn" data-nav="hub">Retour à l'accueil</button></div>`}
+
+function vBoxes(){setHeader('Boîtes de secours',monthLabel(ym(today())));const m=ym(today());const draft=bxCur();
+  let h='';
+  if(!state.firstAid.length)h+=`<div class="card stack"><b>Contenu type non chargé</b><span class="hint">Importe le fichier Reprise_boites_secours.json (Réglages > Importer).</span><button class="btn primary" data-act="import">Importer</button></div>`;
+  if(draft)h+=`<div class="card stack" style="border-color:var(--accent)"><span class="lbl">Contrôle en cours</span><b>${esc(site(draft.site).name)} · ${fmt(draft.date)}</b><div class="row"><button class="btn primary big grow" data-act="bxresume">Reprendre</button><button class="btn danger big" data-act="bxdrop">Supprimer</button></div></div>`;
+  h+=`<h2>Choisis un site</h2><div class="stack">`;
+  for(const s of state.sites){const bx=boxesOf(s.id);if(!bx.length){h+=`<div class="site" style="opacity:.6;cursor:default"><div class="grow"><div class="nm">${esc(s.name)}</div><div class="meta">Aucune boîte enregistrée (Réglages)</div></div></div>`;continue}
+    const st=bxSiteStatus(s.id,m);
+    h+=`<button class="site" data-act="bxstart" data-site="${esc(s.id)}"><div class="grow"><div class="nm">${esc(s.name)}</div><div class="meta">${bx.map(b=>esc(b.loc)).join(' · ')}</div></div>${bxPill(st)}</button>`}
+  h+=`</div><h2>Contenu type d'une boîte</h2><details class="cfg"><summary>${state.firstAid.length} articles</summary><div class="in">${faSections().map(([sec,its])=>`<span class="lbl">${esc(sec)}</span>${its.map(it=>`<div class="row" style="justify-content:space-between"><span>${esc(it.name)}${it.desc?` <span class="hint">${esc(it.desc)}</span>`:''}</span><span class="hint">× ${it.qty}${it.ref?' · réf. '+esc(it.ref):''}</span></div>`).join('')}`).join('')}</div></details>`;
+  const hist=state.boxChecks.filter(c=>c.status==='done').sort((a,b)=>a.date<b.date?1:-1).slice(0,12);
+  if(hist.length)h+=`<h2>Derniers contrôles</h2><div class="stack">${hist.map(c=>`<div class="act"><div class="m"><b>${esc(site(c.site).name)}</b><span>${fmt(c.date)}</span>${bxIncomplete(c)?`<span class="pill warn">${bxIncomplete(c)} incomplète(s)</span>`:'<span class="pill closed">Toutes complètes</span>'}</div><div class="row"><button class="btn small" data-act="bxsend" data-id="${c.id}">Envoyer le PDF</button><button class="btn small" data-act="bxpdf" data-id="${c.id}">Télécharger</button><button class="btn small danger" data-act="bxdel" data-id="${c.id}">Supprimer</button></div></div>`).join('')}</div>`;
+  h+=`<div class="hint" id="dl-msg"></div>`;
+  $('#app').innerHTML=h}
+function faSections(){const out=[];for(const [i,it] of state.firstAid.entries()){let g=out.find(x=>x[0]===it.sec);if(!g){g=[it.sec,[]];out.push(g)}g[1].push(Object.assign({i},it))}return out}
+
+function expSoon(e){return e&&e<=addMonths(today(),1).slice(0,7)}
+function expPast(e){return e&&e<ym(today())}
+function bxRowState(b,r,i){const it=state.firstAid[i];const x=(r.items||{})[i]||{};const e=x.exp||(b.exp||{})[i];return{x,e,need:it.exp&&x.st==='ok'&&!e,soon:it.exp&&x.st==='ok'&&expSoon(e)}}
+function bxProgress(b,r){const n=state.firstAid.length;let done=0,bad=0;for(let i=0;i<n;i++){const rs=bxRowState(b,r,i);if(rs.x.st&&!rs.need)done++;if(rs.x.st==='miss'||rs.soon)bad++}return{done,n,bad}}
+function bxBoxHTML(c,b){const r=c.res[b.id]||{};const k='box:'+b.id;const pg=bxProgress(b,r);
+  let h=`<div class="sec" id="bx-${b.id}" style="padding:14px;display:flex;flex-direction:column;gap:8px"><div class="row"><b class="grow" style="font-size:18px">${esc(b.loc)}</b><span class="pill ${pg.done<pg.n?'na':pg.bad?'warn':'closed'}">${pg.done<pg.n?pg.done+'/'+pg.n:pg.bad?'Incomplète':'Complète'}</span></div>`;
+  for(const [sec,its] of faSections()){h+=`<span class="lbl" style="margin-top:6px">${esc(sec)}</span>`;
+    for(const it of its){const rs=bxRowState(b,r,it.i);const st=rs.x.st;const warn=st==='miss'||rs.soon||rs.need;
+      h+=`<div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;${warn?'background:var(--warn-soft)':st==='ok'?'background:var(--ok-soft)':''}">
+       <div class="row" style="gap:8px;align-items:flex-start;flex-wrap:nowrap"><div class="grow"><b style="font-weight:600">${esc(it.name)}</b>${it.desc?` <span class="hint">${esc(it.desc)}</span>`:''}<div class="hint">Quantité : ${it.qty}${it.ref?' · réf. '+esc(it.ref):''}</div></div>
+        <div style="display:flex;gap:4px;flex:none"><button class="btn small" data-act="bxrow" data-box="${b.id}" data-i="${it.i}" data-v="ok" style="min-height:42px;${st==='ok'?'background:var(--ok);border-color:var(--ok);color:#fff':''}">OK</button><button class="btn small" data-act="bxrow" data-box="${b.id}" data-i="${it.i}" data-v="miss" style="min-height:42px;${st==='miss'?'background:var(--warn);border-color:var(--warn);color:#fff':''}">Manquant</button></div></div>
+       ${st==='miss'?`<div class="row" style="gap:8px"><span class="hint grow">Quantité à remettre</span><button class="btn small" data-act="bxq" data-box="${b.id}" data-i="${it.i}" data-d="-1" aria-label="Moins">−</button><b style="min-width:22px;text-align:center">${rs.x.q||it.qty}</b><button class="btn small" data-act="bxq" data-box="${b.id}" data-i="${it.i}" data-d="1" aria-label="Plus">+</button></div>`:''}
+       ${it.exp&&st!=='miss'?`<div class="row" style="gap:8px"><label class="hint grow" for="ex-${b.id}-${it.i}">Péremption (la plus proche)${rs.need?' <b style="color:var(--warn)">à encoder</b>':rs.soon?' <b style="color:var(--warn)">à remplacer</b>':''}</label><input type="month" id="ex-${b.id}-${it.i}" data-bxexp="${b.id}" data-i="${it.i}" value="${rs.e||''}" style="width:auto;min-height:40px"></div>`:''}
+      </div>`}}
+  h+=`<div class="field"><label for="bc-${b.id}">Commentaire</label><textarea id="bc-${b.id}" data-bxc="${b.id}" placeholder="ex. boîte endommagée, mal fixée…">${esc(r.c||'')}</textarea></div>
+     <div class="thumbs">${(r.ph||[]).map(id=>`<div class="thumb"><img data-photo="${id}" alt="Photo"><button data-act="bxdelph" data-box="${b.id}" data-ph="${id}" aria-label="Supprimer la photo">×</button></div>`).join('')}
+      <button type="button" class="btn" data-act="photo" data-src="cam" data-key="${k}" style="width:84px;height:84px;font-size:13px">Appareil</button><button type="button" class="btn" data-act="photo" data-src="gal" data-key="${k}" style="width:84px;height:84px;font-size:13px">Galerie</button></div>
+     <label class="toggle"><input type="checkbox" data-act="bxacton" data-box="${b.id}" ${r.act&&r.act.on?'checked':''}> Créer une action (en plus du réassort)</label>`;
+  if(r.act&&r.act.on){const a=r.act;const pr=prioOf(a.g,a.p);
+    h+=`<div class="field"><label for="ba-${b.id}">Action à mener</label><textarea id="ba-${b.id}" data-bxa="${b.id}">${esc(a.text||'')}</textarea></div>
+     <div class="field"><span class="lbl">Gravité</span><div class="scale">${[1,2,3,4].map(n=>`<button type="button" data-act="bxg" data-box="${b.id}" data-n="${n}" aria-pressed="${a.g===n}"><b>${n}</b><small>${G_LABELS[n-1]}</small></button>`).join('')}</div></div>
+     <div class="field"><span class="lbl">Probabilité</span><div class="scale">${[1,2,3,4].map(n=>`<button type="button" data-act="bxp" data-box="${b.id}" data-n="${n}" aria-pressed="${a.p===n}"><b>${n}</b><small>${P_LABELS[n-1]}</small></button>`).join('')}</div></div>
+     <div class="prio-out">${pr?`<span class="pill ${pr}">${PRIO_INFO[pr].label}</span><span>Échéance ${fmt(dueOf(c.date,pr))}</span>`:'<span class="hint">Choisis gravité et probabilité.</span>'}</div>
+     <div class="field"><span class="lbl">Responsable</span><div class="chips">${respChips(a.resp,rr=>`data-act="bxresp" data-box="${b.id}" data-r="${esc(rr)}"`)}</div></div>`}
+  return h+`</div>`}
+function vBoxCheck(){const c=bxCur();if(!c)return go('boxes');const bx=boxesOf(c.site);
+  setHeader('Boîtes · '+site(c.site).name,fmt(c.date));
+  $('#app').innerHTML=`<div class="stack"><div class="field"><label for="bx-date">Date du contrôle</label><input type="date" id="bx-date" value="${c.date}" data-bxdate="1"></div>
+   <div class="hint">Valide chaque ligne : OK ou Manquant. Pour les articles qui se périment, encode une fois la date la plus proche, puis mets-la à jour quand tu remplaces le produit. Une date dépassée ou qui tombe d'ici le mois prochain fait passer l'article en réassort.</div>
+   <div class="hint" id="bx-count"></div>
+   ${bx.map(b=>bxBoxHTML(c,b)).join('')}
+   <button class="btn primary big" data-act="bxfinish">Terminer le contrôle</button><button class="btn danger" data-act="bxdrop">Abandonner et supprimer ce contrôle</button></div>`;loadThumbs();bxCount()}
+function bxCount(){const c=bxCur();const el=$('#bx-count');if(!c||!el)return;const bx=boxesOf(c.site);const t=bx.map(b=>bxProgress(b,c.res[b.id]||{}));el.textContent=`${t.filter(x=>x.done===x.n).length}/${bx.length} boîte(s) entièrement contrôlée(s)`}
+function bxRefresh(boxId){const c=bxCur();const b=state.boxes.find(x=>x.id===boxId);const el=document.getElementById('bx-'+boxId);if(el&&b){const y=window.scrollY;el.outerHTML=bxBoxHTML(c,b);window.scrollTo(0,y);loadThumbs()}bxCount()}
+function bxRes(boxId){const c=bxCur();return c.res[boxId]||(c.res[boxId]={})}
+function bxRestock(c){const out=[];for(const [bid,r] of Object.entries(c.res||{})){if(r.st!=='nok')continue;const name=(c.boxNames&&c.boxNames[bid])||state.boxes.find(b=>b.id===bid)?.loc||'Boîte';
+   for(const [i,q] of Object.entries(r.miss||{})){const it=state.firstAid[+i];if(it)out.push({box:name,name:it.name,desc:it.desc||'',ref:it.ref||'',qty:q,why:(r.why||{})[i]||'Manquant'})}}return out}
+async function bxFinish(){const c=bxCur();const bx=boxesOf(c.site);
+  const todo=bx.map(b=>[b,bxProgress(b,c.res[b.id]||{})]).filter(([b,p])=>p.done<p.n);
+  if(todo.length){toast(`${todo[0][0].loc} : ${todo[0][1].n-todo[0][1].done} ligne(s) à valider ou date(s) à encoder.`);const el=document.getElementById('bx-'+todo[0][0].id);if(el)el.scrollIntoView();return}
+  const badAct=bx.filter(b=>{const a=(c.res[b.id]||{}).act;return a&&a.on&&(!a.text||!a.g||!a.p||!a.resp)});
+  if(badAct.length){toast('Une action est incomplète (texte, gravité, probabilité ou responsable).');return}
+  c.boxNames={};
+  for(const b of bx){const r=c.res[b.id];c.boxNames[b.id]=b.loc;r.miss={};r.why={};b.exp=b.exp||{};
+    state.firstAid.forEach((it,i)=>{const x=r.items[i];if(x.st==='miss'){r.miss[i]=x.q||it.qty;r.why[i]='Manquant'}
+      else if(it.exp){const e=x.exp||b.exp[i];x.exp=e;b.exp[i]=e;if(expSoon(e)){r.miss[i]=it.qty;r.why[i]=(expPast(e)?'Périmé ':'Péremption ')+e.slice(5)+'/'+e.slice(0,4)}}});
+    r.st=Object.keys(r.miss).length?'nok':'ok'}
+  for(const b of bx){const r=c.res[b.id];if(r.act&&r.act.on){const a=r.act;const pr=prioOf(a.g,a.p);
+    const ac={id:uid(),num:state.settings.nextNum++,site:c.site,created:c.date,text:a.text.trim(),resp:a.resp,g:a.g,p:a.p,prio:pr,due:dueOf(c.date,pr),closed:null,status:'Ouverte',theme:'secours',visitId:null,itemKey:'box:'+b.id,origin:'Contrôle boîtes de secours du '+fmt(c.date)};
+    state.actions.push(ac);r.actionId=ac.id}}
+  c.status='done';state.ctlDraftId=null;save();go('bxdone',c.id)}
+function vBoxDone(){const c=state.boxChecks.find(x=>x.id===viewArg);if(!c)return go('boxes');const inc=bxIncomplete(c);const rs=bxRestock(c);
+  setHeader('Contrôle terminé',site(c.site).name+' · '+fmt(c.date));
+  $('#app').innerHTML=`<div class="stack"><div class="card done-hero"><div class="lbl">Boîtes de secours</div><div class="score" style="color:${inc?'var(--warn)':'var(--ok)'}">${Object.keys(c.res).length-inc}/${Object.keys(c.res).length}</div><div class="hint">boîte(s) complète(s)${rs.length?' · '+rs.length+' article(s) à réassortir':''}</div></div>
+   <div class="card stack"><b>Envoie le rapport et l'Excel à ton adresse du boulot</b><button class="btn primary big" data-act="bxsendboth" data-id="${c.id}">Envoyer rapport + Excel</button>
+    <div class="row"><button class="btn small grow" data-act="bxpdf" data-id="${c.id}">Télécharger le PDF</button><button class="btn small grow" data-act="savexlsx">Télécharger l'Excel</button></div><div class="hint" id="dl-msg"></div></div>
+   <button class="btn" data-nav="boxes">Retour aux boîtes de secours</button></div>`}
+
+async function buildBoxReport(c){const pdf=new PDF();const W=pdf.W,M=36,CW=W-2*M;const s=site(c.site);let y;
+  let logo=null;const logoSrc=state.settings.logo||(typeof DEFAULT_LOGO!=='undefined'?DEFAULT_LOGO:null);if(logoSrc){try{const im=await dataUrlToJpeg(logoSrc,900);logo={id:pdf.addJpeg(im.bytes,im.w,im.h),w:im.w,h:im.h}}catch(e){}}
+  const newPage=()=>{pdf.page();pdf.rect(0,0,W,6,C.navy);pdf.rect(0,6,W,2,C.brand);y=40;if(logo){const h=24,w=Math.min(90,logo.w*h/logo.h);pdf.image(logo.id,W-M-w,16,w,w*logo.h/logo.w)}pdf.text(s.name+' · '+fmt(c.date),M,y,{size:9,color:C.muted});y+=26};
+  const ensure=h=>{if(y+h>pdf.H-48)newPage()};
+  const heading=t=>{ensure(40);pdf.text(t.toUpperCase(),M,y,{size:10,bold:true,color:C.navy,spacing:0.8});pdf.line(M,y+6,M+CW,y+6,C.brand,1.2);y+=22};
+  pdf.page();pdf.rect(0,0,W,8,C.navy);
+  if(logo){const h=58,w=Math.min(170,logo.w*h/logo.h),hh=w*logo.h/logo.w;pdf.image(logo.id,M,26+(h-hh)/2,w,hh)}
+  const tx0=logo?W-M:M,al=logo?'right':'left';
+  pdf.text('CONTRÔLE DES BOÎTES DE SECOURS',tx0,40,{size:9,bold:true,color:C.brand,spacing:1.2,align:al});
+  pdf.text(s.name,tx0,70,{size:26,bold:true,color:C.navy,align:al});
+  pdf.text(fmt(c.date)+'  ·  contrôle mensuel',tx0,88,{size:10,color:C.muted,align:al});
+  pdf.rect(M,100,CW,2.5,C.brand);y=124;
+  pdf.text('Contrôleur',M,y,{size:9,bold:true,color:C.muted});pdf.text([state.settings.author,state.settings.role].filter(Boolean).join(' – ')||'—',M+80,y,{size:10});y+=24;
+  const ids=Object.keys(c.res);const inc=bxIncomplete(c);const rs=bxRestock(c);
+  const cards=[[String(ids.length),'boîte(s) contrôlée(s)',C.navy],[String(ids.length-inc),'complète(s)',C.ok],[String(inc),'incomplète(s)',inc?C.warn:C.ink],[String(rs.reduce((a,x)=>a+x.qty,0)),'article(s) à remettre',rs.length?C.warn:C.ink]];
+  const cw=(CW-24)/4;cards.forEach(([n,l,col],i)=>{const x=M+i*(cw+8);pdf.rrect(x,y,cw,70,6,C.soft);pdf.text(n,x+cw/2,y+38,{size:26,bold:true,color:col,align:'center'});pdf.text(l,x+cw/2,y+56,{size:9,color:C.muted,align:'center'})});y+=92;
+  heading('État par boîte');
+  for(const id of ids){const r=c.res[id];const name=(c.boxNames&&c.boxNames[id])||state.boxes.find(b=>b.id===id)?.loc||'Boîte';const items=Object.entries(r.miss||{}).map(([i,q])=>{const it=state.firstAid[+i];const w=(r.why||{})[i];return it?it.name+' ('+q+(w&&w!=='Manquant'?', '+w.toLowerCase():'')+')':''}).filter(Boolean);
+    const lines=pdf.wrap(r.st==='ok'?'Complète':(items.length?'À remettre : '+items.join(', '):'')+(r.c?(items.length?' · ':'')+r.c:''),9.5,false,CW-190);
+    const h=Math.max(1,lines.length)*12.5+10;ensure(h);
+    pdf.text(name,M,y,{size:10.5,bold:true});pdf.rrect(M+118,y-11,62,16,4,r.st==='ok'?C.okS:C.warnS);pdf.text(r.st==='ok'?'Complète':'Incomplète',M+149,y,{size:8.5,bold:true,color:r.st==='ok'?C.ok:C.warn,align:'center'});
+    lines.forEach((l,i)=>pdf.text(l,M+190,y+i*12.5,{size:9.5,color:r.st==='ok'?C.muted:C.ink}));y+=h;pdf.line(M,y-8,M+CW,y-8,C.line,0.4)}
+  if(rs.length){y+=8;heading('Liste de réassort');ensure(20);pdf.rect(M,y-11,CW,16,C.soft);[['Article',M+2],['Boîte',M+210],['Motif',M+310],['Réf. VDP',M+400],['Qté',M+CW-4]].forEach(([t,x],i)=>pdf.text(t,x,y,{size:8.5,bold:true,color:C.muted,align:i===4?'right':'left'}));y+=16;
+    for(const x of rs){ensure(16);pdf.text(x.name+(x.desc?' – '+x.desc:''),M+2,y,{size:9.5});pdf.text(x.box,M+210,y,{size:9.5,color:C.muted});pdf.text(x.why,M+310,y,{size:9,color:x.why==='Manquant'?C.ink:C.warn});pdf.text(x.ref||'—',M+400,y,{size:9.5});pdf.text(String(x.qty),M+CW-4,y,{size:9.5,bold:true,align:'right'});y+=15;pdf.line(M,y-10,M+CW,y-10,C.line,0.3)}
+    const tot={};rs.forEach(x=>{const k=x.name+'|'+x.ref;tot[k]=(tot[k]||0)+x.qty});
+    if(Object.keys(tot).length<rs.length){y+=6;ensure(20);pdf.text('Total à commander',M+2,y,{size:9.5,bold:true});y+=14;for(const [k,q] of Object.entries(tot)){const [n,ref]=k.split('|');ensure(14);pdf.text(n,M+2,y,{size:9.5});pdf.text(ref||'—',M+400,y,{size:9.5});pdf.text(String(q),M+CW-4,y,{size:9.5,bold:true,align:'right'});y+=14}}}
+  const acts=state.actions.filter(a=>Object.values(c.res).some(r=>r.actionId===a.id));
+  if(acts.length){y+=8;heading('Actions');for(const a of acts){const ls=pdf.wrap(a.text,10,true,CW-60);ensure(ls.length*13+18);pdf.rrect(M,y-11,40,16,4,C[a.prio]||C.muted);pdf.text(a.prio,M+20,y,{size:9,bold:true,color:a.prio==='P3'?'#1A1A1A':'#FFFFFF',align:'center'});
+    ls.forEach((l,i)=>pdf.text(l,M+52,y+i*13,{size:10,bold:true,color:C.navy}));pdf.text('N° '+a.num+'  ·  Pilote : '+(a.resp||'—')+'  ·  Échéance : '+fmt(a.due),M+52,y+ls.length*13+2,{size:9});y+=ls.length*13+20}}
+  const photos=[];for(const r of Object.values(c.res))for(const id of (r.ph||[]).slice(0,2)){const d=await kvGet('photo:'+id);if(d)try{photos.push(await dataUrlToJpeg(d,700))}catch(e){}}
+  if(photos.length){y+=8;heading('Photos');let x=M;const pw=160,ph=120;ensure(ph+10);for(const im of photos){if(x+pw>M+CW){x=M;y+=ph+10;ensure(ph+10)}const id=pdf.addJpeg(im.bytes,im.w,im.h);const k=Math.min(pw/im.w,ph/im.h);pdf.image(id,x,y,im.w*k,im.h*k);x+=pw+10}y+=ph+10}
+  const n=pdf.pages.length;pdf.pages.forEach((cc,i)=>{pdf.c=cc;pdf.line(M,pdf.H-34,M+CW,pdf.H-34,C.line,0.5);pdf.text((state.settings.company?state.settings.company+' · ':'')+'Contrôle boîtes de secours – '+s.name+' – '+fmt(c.date),M,pdf.H-22,{size:8,color:C.muted});pdf.text('Page '+(i+1)+' / '+n,W-M,pdf.H-22,{size:8,color:C.muted,align:'right'})});
+  return pdf.output()}
+async function bxFile(c){const b=await buildBoxReport(c);return new File([b],`Controle boites de secours ${safeName(site(c.site).name)} ${c.date}.pdf`,{type:'application/pdf'})}
+async function bxShare(id,withXlsx){const m=$('#dl-msg');if(m)m.textContent='Préparation des fichiers…';
+  try{const c=state.boxChecks.find(x=>x.id===id);const files=[await bxFile(c)];if(withXlsx)files.push(new File([buildWorkbook()],`Suivi securite sites ${today()}.xlsx`,{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+    if(navigator.canShare&&navigator.canShare({files})){try{await navigator.share({files,title:`Contrôle boîtes de secours ${site(c.site).name} ${fmt(c.date)}`});if(m)m.textContent='Fichiers transmis.';return}catch(e){if(e&&e.name==='AbortError'){if(m)m.textContent='Envoi annulé.';return}}}
+    files.forEach(f=>download(f.name,f));if(m)m.textContent='Fichiers téléchargés.'}catch(err){console.error(err);if(m)m.textContent="Les fichiers n'ont pas pu être créés."}}
+
+function bxSheets(){const Y=+today().slice(0,4),curM=ym(today());const out=[];
+  const head=v=>({v,s:X.head});
+  /* planning */
+  const P=[[{v:`Boîtes de secours – contrôles mensuels ${Y}`,s:X.title}],[{v:`Vert : complète · Orange : incomplète · Rouge : non contrôlée (mois écoulé) · Suivi depuis ${monthLabel(state.settings.ctlStart)}`,s:X.sub}],[],{ht:22,cells:[head('Site'),head('Boîte'),...MONTHS.map(head)]}];
+  for(const s of state.sites){for(const b of boxesOf(s.id)){const row=[{v:s.name,s:X.bold},{v:b.loc,s:X.txt}];
+    for(let mm=1;mm<=12;mm++){const m=Y+'-'+String(mm).padStart(2,'0');const c=bxLastInMonth(s.id,m);const r=c&&c.res[b.id];
+      if(r)row.push({v:(r.st==='ok'?'✓ ':'! ')+fmt(c.date).slice(0,5),s:r.st==='ok'?X.green:X.yellow});
+      else if(m<state.settings.ctlStart||m>curM)row.push({v:'',s:X.num});else row.push({v:m<curM?'Non fait':'À faire',s:m<curM?X.red:X.blue})}
+    P.push(row)}}
+  out.push({name:'Boîtes – planning',rows:P,cols:[14,22,...Array(12).fill(9)],freeze:{row:4,col:2},tab:'C41E24'});
+  /* historique */
+  const H=[{ht:30,cells:['Date','Site','Boîte','État','Articles manquants / périmés','Commentaire','Action N°'].map(head)}];
+  for(const c of state.boxChecks.filter(x=>x.status==='done').sort((a,b)=>a.date<b.date?1:-1))for(const [id,r] of Object.entries(c.res)){const items=Object.entries(r.miss||{}).map(([i,q])=>{const it=state.firstAid[+i];const w=(r.why||{})[i];return it?it.name+' ×'+q+(w&&w!=='Manquant'?' ('+w.toLowerCase()+')':''):''}).filter(Boolean).join(', ');const ac=state.actions.find(a=>a.id===r.actionId);
+    H.push([{v:c.date,d:1,s:X.date},{v:site(c.site).name,s:X.txt},{v:(c.boxNames&&c.boxNames[id])||state.boxes.find(b=>b.id===id)?.loc||'',s:X.txt},{v:r.st==='ok'?'Complète':'Incomplète',s:r.st==='ok'?X.green:X.yellow},{v:items,s:X.txt},{v:r.c||'',s:X.txt},{v:ac?ac.num:'',s:X.num}])}
+  out.push({name:'Boîtes – historique',rows:H,cols:[12,13,22,12,60,40,10],freeze:{row:1},filter:`A1:G${H.length}`,tab:'C41E24'});
+  /* réassort : dernier contrôle de chaque site */
+  const R=[{ht:30,cells:['Site','Boîte','Article','Description','Motif','Réf. VDP','Quantité','Constaté le'].map(head)}];
+  for(const s of state.sites){const last=state.boxChecks.filter(c=>c.status==='done'&&c.site===s.id).sort((a,b)=>a.date<b.date?1:-1)[0];if(!last)continue;
+    for(const x of bxRestock(last))R.push([{v:s.name,s:X.txt},{v:x.box,s:X.txt},{v:x.name,s:X.txt},{v:x.desc,s:X.txt},{v:x.why,s:x.why==='Manquant'?X.txt:X.yellow},{v:x.ref?String(x.ref):'',s:X.num},{v:x.qty,s:X.num},{v:last.date,d:1,s:X.date}])}
+  out.push({name:'Boîtes – réassort',rows:R,cols:[13,22,30,16,20,12,10,12],freeze:{row:1},filter:`A1:H${R.length}`,tab:'C41E24'});
+  const E=[{ht:30,cells:['Site','Boîte','Article','Péremption','Situation'].map(head)}];const lim=addMonths(today(),1).slice(0,7);
+  for(const s of state.sites)for(const b of boxesOf(s.id))state.firstAid.forEach((it,i)=>{if(!it.exp)return;const e=(b.exp||{})[i];
+    E.push([{v:s.name,s:X.txt},{v:b.loc,s:X.txt},{v:it.name+(it.desc?' '+it.desc:''),s:X.txt},{v:e?e.slice(5)+'/'+e.slice(0,4):'à encoder',s:X.num},e?(expPast(e)?{v:'Dépassée',s:X.red}:e<=lim?{v:'À remplacer',s:X.yellow}:{v:'OK',s:X.green}):{v:'—',s:X.num}])});
+  out.push({name:'Boîtes – péremptions',rows:E,cols:[13,22,36,13,14],freeze:{row:1},filter:`A1:E${E.length}`,tab:'C41E24'});
+  return out}
+function bxKpiRows(){const curM=ym(today());const bs=boxSites();const done=bs.filter(s=>['ok','inc'].includes(bxSiteStatus(s.id,curM).state)).length;
+  let due=0,ok=0;for(const s of bs){let m=state.settings.ctlStart;while(m<curM){due++;if(bxLastInMonth(s.id,m))ok++;m=addMonths(m+'-01',1).slice(0,7)}}
+  const lastInc=bs.reduce((n,s)=>{const last=state.boxChecks.filter(c=>c.status==='done'&&c.site===s.id).sort((a,b)=>a.date<b.date?1:-1)[0];return n+(last?bxIncomplete(last):0)},0);
+  let soon=0;const lim=addMonths(today(),1).slice(0,7);for(const b of state.boxes)for(const [i,e] of Object.entries(b.exp||{}))if(state.firstAid[+i]?.exp&&e&&e<=lim)soon++;
+  return [['Sites contrôlés ce mois ('+monthLabel(curM)+')',done+' / '+bs.length],['Articles périmés ou à remplacer d\'ici le mois prochain',soon],['Contrôles réalisés depuis le début du suivi (mois écoulés)',due?Math.round(100*ok/due)+' %':'—'],['Boîtes incomplètes au dernier contrôle',lastInc],['Boîtes enregistrées',state.boxes.length]]}
+
 /* ===================== IMPORT ===================== */
 async function doImport(file){try{let obj;const buf=await file.arrayBuffer();const u8=new Uint8Array(buf);
   if(u8[0]===0x50&&u8[1]===0x4B){try{obj=await readBackupFromXlsx(buf)}catch(e){toast("Cet Excel n'a pas été exporté par l'appli (il ne contient pas de sauvegarde).");return}}
   else obj=JSON.parse(new TextDecoder().decode(u8));
   if(!obj||obj.format!=='visites-securite'||!obj.data)throw new Error('format');
+  if(obj.merge){for(const [k,v] of Object.entries(obj.data)){if(k==='settings')Object.assign(state.settings,v);else state[k]=v}state=normalize(state);await kvSet('state',JSON.parse(JSON.stringify(state)));toast(obj.data.boxes?`Boîtes de secours ajoutées : ${state.boxes.length} boîtes, ${state.firstAid.length} articles`:'Données ajoutées');go('hub');return}
   const has=state.actions.length||state.visits.length;
   if(has&&!await confirmBox(`Remplacer toutes les données de l'appli par celles du fichier (${obj.data.actions?.length||0} actions) ?`,'Remplacer'))return;
   state=normalize(obj.data);await kvSet('state',JSON.parse(JSON.stringify(state)));try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(_){}
@@ -721,7 +911,7 @@ function buildWorkbook(){const T=today(),Y=+T.slice(0,4);const A=state.actions;c
  D[3]={ht:30,cells:[{v:'Actions ouvertes',s:X.kpil},{v:'dont en retard',s:X.kpil},{v:'Clôturées',s:X.kpil},{v:'Taux de clôture',s:X.kpil},{v:'Délai moyen de clôture (jours)',s:X.kpil},{v:`Visites ${Y}`,s:X.kpil},{v:'Dernier score moyen',s:X.kpil}]};
  const lastScores=state.sites.map(s=>lastScore(s.id)).filter(x=>x!=null);
  D[4]={ht:40,cells:[{v:open+late,s:X.kpi},{v:late,s:X.kpi},{v:closed,s:X.kpi},{v:A.length?closed/A.length:0,s:X.kpipct},{v:avg(closedDelays),s:X.kpi},{v:state.sites.reduce((s,x)=>s+visitsYear(x.id),0),s:X.kpi},{v:lastScores.length?avg(lastScores)/100:'—',s:typeof avg(lastScores)==='number'?X.kpipct:X.kpi}]};
- let r=6;D[r++]=[{v:'Par site',s:X.section}];
+ let r=6;if(state.boxes.length){D[r++]=[{v:'Contrôles internes – Boîtes de secours',s:X.section}];for(const [l,v] of bxKpiRows())D[r++]=[{v:l,s:X.bold},{v:v,s:X.num}];r++}D[r++]=[{v:'Par site',s:X.section}];
  D[r++]={ht:30,cells:['Site',`Visites ${Y}`,'Dernière visite','Jours depuis','Dernier score','Ouvertes','En retard','Clôturées','Taux de clôture','Délai moyen (j)'].map(H)};
  for(const s of state.sites){const as=A.filter(a=>a.site===s.id);const lv=lastVisitDate(s.id);const d=lv?daysBetween(lv,T):null;const sc=lastScore(s.id);const cl=as.filter(a=>a.status==='Clôturée');const lt=as.filter(a=>situation(a)==='En retard').length;
   D[r++]=[{v:s.name,s:X.bold},{v:visitsYear(s.id),s:X.num},lv?{v:lv,d:1,s:X.date}:{v:'—',s:X.num},{v:d==null?'—':d,s:d!=null&&d>state.settings.alertDays?X.red:X.num},
@@ -757,7 +947,7 @@ function buildWorkbook(){const T=today(),Y=+T.slice(0,4);const A=state.actions;c
  /* Sauvegarde */
  const json=JSON.stringify({format:'visites-securite',version:1,exported:new Date().toISOString(),data:state});const SB=[[{v:"Sauvegarde de l'appli Visites sécurité – ne pas modifier"}]];for(let i=0;i<json.length;i+=30000)SB.push([{v:json.slice(i,i+30000)}]);
  const sb={name:'_sauvegarde',rows:SB,hidden:true};
- return workbookZip([dash,plan,vis,ec,sb])}
+ return workbookZip([dash,plan,vis,ec,...bxSheets(),sb])}
 
 async function readBackupFromXlsx(buf){const z=await unzip(buf);const wb=await z.get('xl/workbook.xml');const rels=await z.get('xl/_rels/workbook.xml.rels');const P=new DOMParser();
  const w=P.parseFromString(wb,'application/xml');let rid=null;for(const s of w.getElementsByTagName('sheet'))if(s.getAttribute('name')==='_sauvegarde')rid=s.getAttribute('r:id')||s.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id');
