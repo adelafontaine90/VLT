@@ -223,7 +223,7 @@ async function kvSet(k,v){mem.set(k,v);try{const db=await idb();await new Promis
 async function kvDel(k){mem.delete(k);try{const db=await idb();await new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').delete(k);t.oncomplete=res;t.onerror=()=>rej(t.error)})}catch(e){}}
 
 function defaultState(){return{
-  v:1,settings:{author:'Arnaud Delafontaine',role:'Référent prévention & Sécurité',company:'Derichebourg Belgium',logo:null,alertDays:45,nextNum:1},
+  v:1,settings:{author:'',role:'Référent prévention & Sécurité',company:'Derichebourg Belgium',logo:null,alertDays:45,nextNum:1},
   sites:SITE_NAMES.map(n=>({id:n,name:n,resp:'',diffusion:'',modules:[]})),
   responsables:[],visits:[],actions:[],visitHistory:[],draftId:null}}
 let state=defaultState();
@@ -290,7 +290,7 @@ function vSetup(){const v=state.visits.find(x=>x.id===viewArg);if(!v)return go('
   $('#app').innerHTML=`<div class="stack card">
    <div class="field"><label for="f-date">Date de la visite</label><input type="date" id="f-date" value="${v.date}" data-bind="date"></div>
    <div class="field"><label for="f-objet">Objet de la visite</label><input type="text" id="f-objet" value="${esc(v.objet)}" data-bind="objet"></div>
-   <div class="field"><label for="f-diff">Diffusion</label><input type="text" id="f-diff" value="${esc(v.diffusion)}" data-bind="diffusion" placeholder="ex. Laurent S. / Direction"></div>
+   <div class="field"><label for="f-diff">Diffusion</label><input type="text" id="f-diff" value="${esc(v.diffusion)}" data-bind="diffusion" placeholder="ex. Chef de site / Direction"></div>
    <div class="hint">Checklist : ${THEMES.length} thèmes communs${site(v.site).modules.length?' + '+site(v.site).modules.map(m=>esc(m.label)).join(', '):''}. Modifiable dans Réglages.</div>
    <button class="btn primary big" data-act="startchecklist">Commencer la checklist</button>
    <button class="btn danger" data-act="cancelvisit">Annuler cette visite</button></div>`}
@@ -389,7 +389,7 @@ function vSettings(){setHeader('Réglages');const S=state.settings;
     <div class="row"><select id="ss-t${i}" style="max-width:150px" aria-label="Type d'équipement"><option value="machine">Machine</option><option value="vhu">VHU</option><option value="camions">Camions</option></select><input type="text" id="ss-l${i}" class="grow" placeholder="ex. Presse 2" aria-label="Nom de l'équipement" style="flex:1;width:auto"><button class="btn small" data-act="addmod" data-site="${esc(s.id)}" data-i="${i}">Ajouter</button></div>
   </div></details>`).join('')}
   <h2>Responsables</h2><div class="card stack"><div class="modlist">${state.responsables.map(r=>`<span>${esc(r)}<button data-act="delresp" data-r="${esc(r)}" aria-label="Retirer ${esc(r)}">×</button></span>`).join('')||'<span class="hint">Aucun responsable</span>'}</div>
-   <div class="row"><input type="text" id="new-resp" class="grow" placeholder="Prénom + initiale, ex. Laurent S." style="flex:1;width:auto" aria-label="Nouveau responsable"><button class="btn small" data-act="addresp">Ajouter</button></div>
+   <div class="row"><input type="text" id="new-resp" class="grow" placeholder="Prénom + initiale, ex. Marie D." style="flex:1;width:auto" aria-label="Nouveau responsable"><button class="btn small" data-act="addresp">Ajouter</button></div>
    <span class="hint">Prénom + initiale uniquement. Pas d'adresses e-mail : tu transfères les rapports depuis ta boîte du boulot.</span></div>
   <h2>Données</h2><div class="card stack"><span class="hint">Les données restent sur ce téléphone. Chaque fichier Excel exporté contient une sauvegarde complète (sans les photos).</span>
    <button class="btn" data-act="import">Importer (reprise ou sauvegarde Excel)</button>
@@ -728,7 +728,7 @@ function buildWorkbook(){const T=today(),Y=+T.slice(0,4);const A=state.actions;c
    sc==null?{v:'—',s:X.num}:{v:sc/100,s:sc>=90?X.greenc:sc>=75?X.yellowc:X.redc},{v:as.filter(a=>situation(a)==='Ouverte').length,s:X.num},{v:lt,s:lt?X.red:X.num},{v:cl.length,s:X.num},{v:as.length?cl.length/as.length:0,s:X.pct},{v:avg(cl.filter(a=>a.closed).map(a=>daysBetween(a.created,a.closed))),s:X.num}]}
  D[r++]=[{v:'Total',s:X.boldnum},{v:state.sites.reduce((s,x)=>s+visitsYear(x.id),0),s:X.boldnum},{v:'',s:X.boldnum},{v:'',s:X.boldnum},{v:'',s:X.boldnum},{v:open,s:X.boldnum},{v:late,s:X.boldnum},{v:closed,s:X.boldnum},{v:A.length?closed/A.length:0,s:X.pct},{v:avg(closedDelays),s:X.boldnum}];
  r++;D[r++]=[{v:'Par thème',s:X.section}];
- D[r++]={ht:30,cells:['Thème','Actions','Ouvertes','En retard','Clôturées','Écarts constatés (visites appli)'].map(H)};
+ D[r++]={ht:44,cells:['Thème','Actions','Ouvertes','En retard','Clôturées','Écarts constatés (visites appli)'].map(H)};
  const nokByTheme={};for(const v of done)for(const it of itemsOf(v))if(v.answers[it.key]?.v==='NOK')nokByTheme[it.sec.theme]=(nokByTheme[it.sec.theme]||0)+1;
  for(const th of THEME_ORDER){const as=A.filter(a=>a.theme===th);if(!as.length&&!nokByTheme[th])continue;const lt=as.filter(a=>situation(a)==='En retard').length;
   D[r++]=[{v:THEME_NAMES[th],s:X.bold},{v:as.length,s:X.num},{v:as.filter(a=>situation(a)==='Ouverte').length,s:X.num},{v:lt,s:lt?X.red:X.num},{v:as.filter(a=>a.status==='Clôturée').length,s:X.num},{v:nokByTheme[th]||0,s:X.num}]}
