@@ -246,7 +246,7 @@ function visitStats(v){let ok=0,nok=0,no=0,tot=0;for(const it of itemsOf(v)){tot
   return{ok,nok,no,tot,done:ok+nok+no,score:(ok+nok)?Math.round(100*ok/(ok+nok)):null}}
 function lastVisitDate(siteId){let best=null;for(const v of state.visits)if(v.site===siteId&&v.status==='done'&&(!best||v.date>best))best=v.date;
   for(const h of state.visitHistory)if(h.site===siteId){const d=h.month+'-01';if(!best||d>best)best=d}return best}
-function lastScore(siteId,beforeId){const vs=state.visits.filter(v=>v.site===siteId&&v.status==='done'&&v.id!==beforeId).sort((a,b)=>a.date<b.date?1:-1);return vs.length?vs[0].score:null}
+function lastScore(siteId,beforeId){const vs=state.visits.filter(v=>v.site===siteId&&v.status==='done'&&v.id!==beforeId&&v.score!=null).sort((a,b)=>a.date<b.date?1:-1);return vs.length?vs[0].score:null}
 function siteCounts(siteId){const a=state.actions.filter(x=>x.site===siteId);return{open:a.filter(x=>situation(x)==='Ouverte').length,late:a.filter(x=>situation(x)==='En retard').length,closed:a.filter(x=>x.status==='Clôturée').length}}
 
 /* ===================== VUES ===================== */
@@ -369,7 +369,7 @@ function vActions(){setHeader('Actions',state.actions.length+' au total');
 
 function vExport(){setHeader('Exporter');const done=state.visits.filter(v=>v.status==='done').sort((a,b)=>a.date<b.date?1:-1);
   $('#app').innerHTML=`<div class="stack"><div class="card stack"><b>Fichier Excel de suivi</b><span class="hint">Tableau de bord par site, plan d'actions complet, visites et écarts. Il sert aussi de sauvegarde de l'appli.</span><button class="btn primary big" data-act="sendxlsx">Envoyer le suivi (Excel)</button><button class="btn small" data-act="savexlsx">Télécharger l'Excel</button><div class="hint" id="dl-msg"></div></div>
-   <h2>Rapports des visites</h2>${done.length?done.map(v=>`<div class="act"><div class="m"><b>${esc(site(v.site).name)}</b><span>${fmt(v.date)}</span><span class="pill ${v.score>=90?'closed':v.score>=75?'warn':'late'}">${v.score==null?'—':v.score+' %'}</span></div><div class="row"><button class="btn small" data-act="sendpdf" data-visit="${v.id}">Envoyer le PDF</button><button class="btn small" data-act="savepdf" data-visit="${v.id}">Télécharger</button><button class="btn small danger" data-act="delvisit" data-visit="${v.id}">Supprimer</button></div></div>`).join(''):`<div class="empty">Aucune visite réalisée avec l'appli pour l'instant.</div>`}</div>`}
+   <h2>Rapports des visites</h2>${done.length?done.map(v=>`<div class="act"><div class="m"><b>${esc(site(v.site).name)}</b><span>${fmt(v.date)}</span>${v.historic?'<span class="pill na">Avant l\'appli</span>':`<span class="pill ${v.score>=90?'closed':v.score>=75?'warn':'late'}">${v.score==null?'—':v.score+' %'}</span>`}</div><div class="row"><button ${v.historic?"hidden ":""}class="btn small" data-act="sendpdf" data-visit="${v.id}">Envoyer le PDF</button><button ${v.historic?"hidden ":""}class="btn small" data-act="savepdf" data-visit="${v.id}">Télécharger</button><button class="btn small danger" data-act="delvisit" data-visit="${v.id}">Supprimer</button></div></div>`).join(''):`<div class="empty">Aucune visite réalisée avec l'appli pour l'instant.</div>`}</div>`}
 
 function vSettings(){setHeader('Réglages');const S=state.settings;
   $('#app').innerHTML=`<div class="stack">
