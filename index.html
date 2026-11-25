@@ -729,7 +729,7 @@ function fxPill(st){return st.state==='ok'?`<span class="pill closed">Fait le ${
 function fxOrgDue(e){return e.org?addMonths(e.org+'-01',12).slice(0,7):null}
 function fxOrgState(e){const d=fxOrgDue(e);if(!d)return'none';if(d<ym(today()))return'past';if(d<=addMonths(today(),1).slice(0,7))return'soon';return'ok'}
 function fxOrgPill(e){const s=fxOrgState(e);const d=fxOrgDue(e);if(s==='none')return'<span class="pill na">Vérif. organisme : ?</span>';const t=`Organisme ${e.org.slice(5)}/${e.org.slice(0,4)}`;return s==='past'?`<span class="pill late">${t} · échue</span>`:s==='soon'?`<span class="pill warn">${t} · échéance ${d.slice(5)}/${d.slice(0,4)}</span>`:`<span class="pill na">${t}</span>`}
-function fxCrits(e){return FX_CRIT.filter(([k])=>!(k==='plomb'&&e.ria))}
+function fxCrits(e){return FX_CRIT.filter(([k])=>!(k==='plomb'&&(e.ria||e.noplomb)))}
 function fxDone(e,r){const c=(r&&r.c)||{};if(!c.pres)return false;if(c.pres==='nok')return !!(r.note||'').trim();return fxCrits(e).every(([k])=>c[k])}
 async function fxPlan(siteId){try{return await kvGet('plan:fire:'+siteId)}catch(e){return null}}
 
@@ -785,7 +785,7 @@ async function fxFinish(){const c=fxCur();const eq=fxEquip(c.site);const todo=eq
   const bad=eq.filter(e=>{const a=(c.res[e.id]||{}).act;return a&&a.on&&(!a.text||!a.g||!a.p||!a.resp)});
   if(bad.length){toast('Une action est incomplète (texte, gravité, probabilité ou responsable).');return}
   c.snap={};
-  for(const e of eq){const r=c.res[e.id];const cc=r.c;r.st=(cc.pres==='nok'||fxCrits(e).some(([k])=>cc[k]==='nok'))?'nok':'ok';if(r.org)e.org=r.org;c.snap[e.id]={num:e.num,zone:e.zone||'',loc:e.loc,label:e.label,ria:!!e.ria,org:e.org||''};
+  for(const e of eq){const r=c.res[e.id];const cc=r.c;r.st=(cc.pres==='nok'||fxCrits(e).some(([k])=>cc[k]==='nok'))?'nok':'ok';if(r.org)e.org=r.org;c.snap[e.id]={num:e.num,zone:e.zone||'',loc:e.loc,label:e.label,ria:!!e.ria,noplomb:!!e.noplomb,org:e.org||''};
     if(r.act&&r.act.on){const a=r.act;const pr=prioOf(a.g,a.p);const ac={id:uid(),num:state.settings.nextNum++,site:c.site,created:c.date,text:a.text.trim(),resp:a.resp,g:a.g,p:a.p,prio:pr,due:dueOf(c.date,pr),closed:null,status:'Ouverte',theme:'incendie',visitId:null,itemKey:'fx:'+e.id,origin:"Contrôle moyens d'extinction du "+fmt(c.date)};state.actions.push(ac);r.actionId=ac.id}}
   c.status='done';state.fireDraftId=null;save();go('fxdone',c.id)}
 function vFireDone(){const c=state.fireChecks.find(x=>x.id===viewArg);if(!c)return go('fire');const n=Object.keys(c.res).length,nok=fxNok(c);
