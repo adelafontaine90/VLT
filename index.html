@@ -901,7 +901,7 @@ function tpDone(e,r){const c=(r&&r.c)||{};const crit=tpCrits(e);if(!crit.every((
 async function tpPlan(siteId){try{return await kvGet('plan:belt:'+siteId)}catch(e){return null}}
 /* test des arrêts d'urgence : 2 fois par an */
 function tpHasAU(siteId){return tpEquip(siteId).some(e=>e.au)}
-function tpAUSites(){return tpSites().filter(s=>tpHasAU(s.id))}
+function tpAUSites(){return tpSites()}
 function tpAUDue(siteId){const d=(state.beltAU||{})[siteId];return d?addMonths(d,6):null}
 function tpAUState(siteId){const d=tpAUDue(siteId);if(!d)return'none';if(d<today())return'past';if(d<=addMonths(today(),1))return'soon';return'ok'}
 function tpAUPill(siteId){const s=tpAUState(siteId),d=tpAUDue(siteId),last=(state.beltAU||{})[siteId];
@@ -915,7 +915,7 @@ function vBelts(){setHeader('Bandes transporteuses',monthLabel(ym(today())));con
   if(draft)h+=`<div class="card stack" style="border-color:var(--accent)"><span class="lbl">Contrôle en cours</span><b>${esc(site(draft.site).name)} · ${fmt(draft.date)}</b><div class="row"><button class="btn primary big grow" data-act="tpresume">Reprendre</button><button class="btn danger big" data-act="tpdrop">Supprimer</button></div></div>`;
   h+=`<h2>Choisis un site</h2><div class="stack">`;
   for(const s of tpSites()){const eq=tpEquip(s.id);const st=tpSiteStatus(s.id,m);
-    h+=`<button class="site" data-act="tpstart" data-site="${esc(s.id)}"><div class="grow"><div class="nm">${esc(s.name)}</div><div class="meta">${eq.length} équipement(s)</div></div><div class="stack" style="gap:4px;align-items:flex-end">${tpPill(st)}${tpHasAU(s.id)&&tpAUState(s.id)!=='ok'?tpAUPill(s.id):''}</div></button>`}
+    h+=`<button class="site" data-act="tpstart" data-site="${esc(s.id)}"><div class="grow"><div class="nm">${esc(s.name)}</div><div class="meta">${eq.length} équipement(s)</div></div><div class="stack" style="gap:4px;align-items:flex-end">${tpPill(st)}${tpAUState(s.id)!=='ok'?tpAUPill(s.id):''}</div></button>`}
   h+=`</div>`;
   const au=tpAUSites();if(au.length)h+=`<h2>Tests des arrêts d’urgence</h2><div class="stack">${au.map(s=>`<div><span class="lbl">${esc(s.name)}</span>${tpAUField(s.id)}</div>`).join('')}</div>`;
   const hist=state.beltChecks.filter(c=>c.status==='done').sort((a,b)=>a.date<b.date?1:-1).slice(0,12);
@@ -944,7 +944,7 @@ async function vBeltCheck(){const c=tpCur();if(!c)return go('belts');const eq=tp
   $('#app').innerHTML=`<div class="stack"><div id="tp-plan"></div>
    <div class="field"><label for="tp-date">Date du contrôle</label><input type="date" id="tp-date" value="${c.date}" data-tpdate="1"></div>
    <div class="field"><label for="tp-gen">Remarque générale (facultatif)</label><textarea id="tp-gen" data-tpgen="1" placeholder="ex. broyeur à l'arrêt, maintenance en cours">${esc(c.gen||'')}</textarea></div>
-   ${tpHasAU(c.site)?tpAUField(c.site):''}
+   ${tpAUField(c.site)}
    <div class="hint" id="tp-count"></div>
    ${eq.map(e=>tpRowHTML(c,e)).join('')}
    <button class="btn primary big" data-act="tpfinish">Terminer le contrôle</button><button class="btn danger" data-act="tpdrop">Abandonner et supprimer ce contrôle</button></div>`;
@@ -984,7 +984,7 @@ async function buildBeltReport(c){const pdf=new PDF();const W=pdf.W,M=36,CW=W-2*
   pdf.text(s.name,tx0,70,{size:26,bold:true,color:C.navy,align:al});pdf.text(fmt(c.date)+'  ·  contrôle mensuel',tx0,88,{size:10,color:C.muted,align:al});
   pdf.rect(M,100,CW,2.5,C.brand);y=124;
   pdf.text('Contrôleur',M,y,{size:9,bold:true,color:C.muted});pdf.text([state.settings.author,state.settings.role].filter(Boolean).join(' – ')||'—',M+80,y,{size:10});y+=16;
-  const hasAU=Object.values(c.snap||{}).some(x=>x.au);
+  const hasAU=true;
   if(hasAU){const last=c.auLast;const due=last?addMonths(last,6):null;const past=due&&due<c.date;pdf.text('Arrêts d’urgence',M,y,{size:9,bold:true,color:C.muted});pdf.text(last?`dernier test le ${fmt(last)} · prochain avant le ${fmt(due)}${past?' (échu)':''}`:'date du dernier test non encodée',M+80,y,{size:10,bold:!last||past,color:!last||past?C.nok:C.ink});y+=16}
   if(c.gen){const gl=pdf.wrap(c.gen,10,false,CW-80);pdf.text('Remarque',M,y,{size:9,bold:true,color:C.muted});gl.forEach((t,i)=>pdf.text(t,M+80,y+i*13,{size:10}));y+=gl.length*13+3}
   y+=8;
