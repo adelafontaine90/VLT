@@ -712,7 +712,7 @@ async function buildBoxReport(c){const pdf=new PDF();const W=pdf.W,M=36,CW=W-2*M
   return pdf.output()}
 async function bxFile(c){const b=await buildBoxReport(c);return new File([b],`Controle boites de secours ${safeName(site(c.site).name)} ${c.date}.pdf`,{type:'application/pdf'})}
 async function bxShare(id,withXlsx){const m=$('#dl-msg');if(m)m.textContent='Préparation des fichiers…';
-  try{const c=state.boxChecks.find(x=>x.id===id);const files=[await bxFile(c)];if(withXlsx)files.push(new File([buildWorkbook()],`Suivi securite sites ${today()}.xlsx`,{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  try{const c=state.boxChecks.find(x=>x.id===id);const files=[await bxFile(c)];if(withXlsx)files.push(new File([buildWorkbook()],`Suivi sécurité - Derichebourg Belgium.xlsx`,{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
     if(navigator.canShare&&navigator.canShare({files})){try{await navigator.share({files,title:`Contrôle boîtes de secours ${site(c.site).name} ${fmt(c.date)}`});if(m)m.textContent='Fichiers transmis.';return}catch(e){if(e&&e.name==='AbortError'){if(m)m.textContent='Envoi annulé.';return}}}
     files.forEach(f=>download(f.name,f));if(m)m.textContent='Fichiers téléchargés.'}catch(err){console.error(err);if(m)m.textContent="Les fichiers n'ont pas pu être créés."}}
 
@@ -861,7 +861,7 @@ async function buildFireReport(c){const pdf=new PDF();const W=pdf.W,M=36,CW=W-2*
   return pdf.output()}
 async function fxFile(c){const b=await buildFireReport(c);return new File([b],`Controle moyens extinction ${safeName(site(c.site).name)} ${c.date}.pdf`,{type:'application/pdf'})}
 async function fxShare(id,withXlsx){const m=$('#dl-msg');if(m)m.textContent='Préparation des fichiers…';
-  try{const c=state.fireChecks.find(x=>x.id===id);const files=[await fxFile(c)];if(withXlsx)files.push(new File([buildWorkbook()],`Suivi securite sites ${today()}.xlsx`,{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  try{const c=state.fireChecks.find(x=>x.id===id);const files=[await fxFile(c)];if(withXlsx)files.push(new File([buildWorkbook()],`Suivi sécurité - Derichebourg Belgium.xlsx`,{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
     if(navigator.canShare&&navigator.canShare({files})){try{await navigator.share({files,title:`Contrôle moyens d'extinction ${site(c.site).name} ${fmt(c.date)}`});if(m)m.textContent='Fichiers transmis.';return}catch(e){if(e&&e.name==='AbortError'){if(m)m.textContent='Envoi annulé.';return}}}
     files.forEach(f=>download(f.name,f));if(m)m.textContent='Fichiers téléchargés.'}catch(err){console.error(err);if(m)m.textContent="Les fichiers n'ont pas pu être créés."}}
 
@@ -1013,7 +1013,7 @@ async function buildBeltReport(c){const pdf=new PDF();const W=pdf.W,M=36,CW=W-2*
   return pdf.output()}
 async function tpFile(c){const b=await buildBeltReport(c);return new File([b],`Controle bandes transporteuses ${safeName(site(c.site).name)} ${c.date}.pdf`,{type:'application/pdf'})}
 async function tpShare(id,withXlsx){const m=$('#dl-msg');if(m)m.textContent='Préparation des fichiers…';
-  try{const c=state.beltChecks.find(x=>x.id===id);const files=[await tpFile(c)];if(withXlsx)files.push(new File([buildWorkbook()],`Suivi securite sites ${today()}.xlsx`,{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  try{const c=state.beltChecks.find(x=>x.id===id);const files=[await tpFile(c)];if(withXlsx)files.push(new File([buildWorkbook()],`Suivi sécurité - Derichebourg Belgium.xlsx`,{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
     if(navigator.canShare&&navigator.canShare({files})){try{await navigator.share({files,title:`Contrôle bandes transporteuses ${site(c.site).name} ${fmt(c.date)}`});if(m)m.textContent='Fichiers transmis.';return}catch(e){if(e&&e.name==='AbortError'){if(m)m.textContent='Envoi annulé.';return}}}
     files.forEach(f=>download(f.name,f));if(m)m.textContent='Fichiers téléchargés.'}catch(err){console.error(err);if(m)m.textContent="Les fichiers n'ont pas pu être créés."}}
 
@@ -1037,6 +1037,238 @@ function tpKpiRows(){const curM=ym(today());const ts=tpSites();const done=ts.fil
   const lastNok=ts.reduce((n,s)=>{const last=state.beltChecks.filter(c=>c.status==='done'&&c.site===s.id).sort((a,b)=>a.date<b.date?1:-1)[0];return n+(last?tpNok(last):0)},0);
   const au=tpAUSites();
   return [['Sites contrôlés ce mois ('+monthLabel(curM)+')',done+' / '+ts.length],['Équipements non conformes au dernier contrôle',lastNok],['Tests des arrêts d’urgence échus ou à encoder',au.filter(s=>['past','none'].includes(tpAUState(s.id))).length+' / '+au.length],['Équipements enregistrés',state.beltEquip.length]]}
+
+
+/* ===================== EXCEL · MISE EN PAGE ===================== */
+function xlStyles(){Object.assign(X,{banner:26,bannerSub:27,sect:28,tileLbl:29,tileNum:30,tileRed:31,tileGreen:32,tileAmber:33,tilePct:34,tilePctGreen:35,tilePctAmber:36,tilePctRed:37,tileCap:38,link:39,na:40,note:41,linkLbl:42})}
+const FAM={pilot:'262626',act:'C41E24',vis:'2F6FB0',ctl:'2E7D4F'};
+const SHEET={dash:'Tableau de bord',syn:'Synthèse contrôles',plan:"Plan d'actions",vis:'Visites',ec:'Écarts constatés',bx:'Boîtes de secours',fx:"Moyens d'extinction",tp:'Bandes transporteuses'};
+const paName=s=>('PA '+s.name).slice(0,31);
+const xLoc=n=>`'${n.replace(/'/g,"''")}'!A1`;
+function XS(name,cols,tab){const sh={name,cols,tab,rows:[],merges:[],links:[],nogrid:true,portrait:false};let r=0;const W=cols.length;
+  const put=(specs,ht)=>{const cells=[];let c=0;for(const sp of specs){if(sp==null){c++;continue}const o=(typeof sp==='object')?sp:{v:sp};const span=o.span||1;
+      cells[c]={v:o.v==null?'':o.v,s:o.s,d:o.d};for(let k=1;k<span;k++)cells[c+k]={v:'',s:o.s};
+      if(span>1)sh.merges.push(`${colL(c)}${r+1}:${colL(c+span-1)}${r+1}`);if(o.link)sh.links.push({ref:colL(c)+(r+1),loc:xLoc(o.link),disp:String(o.v)});c+=span}
+    sh.rows[r]=ht?{ht,cells}:cells;return r++};
+  const T={sh,W,get r(){return r},skip(n=1){r+=n},row:put,
+    banner(t,sub){put([{v:t,s:X.banner,span:W}],36);put([{v:sub,s:X.bannerSub,span:W}],20);r++},
+    section(t){if(r>3)r++;put([{v:t,s:X.sect,span:W}],26);r++},
+    note(t){put([{v:t,s:X.note,span:W}],t.length>140?30:16)},
+    tiles(list){const L=[],V=[],C=[];for(const t of list){const sp=t.span||2;const tone={red:'Red',green:'Green',amber:'Amber'}[t.tone]||'';
+        L.push({v:t.l,s:X.tileLbl,span:sp});V.push({v:t.v,s:t.pct&&typeof t.v==='number'?X['tilePct'+tone]:X[tone?'tile'+tone:'tileNum'],span:sp});C.push({v:t.cap||'',s:X.tileCap,span:sp})}
+      put(L,30);put(V,46);put(C,22)},
+    head(list,ht){return put(list.map(h=>typeof h==='object'?{...h,s:X.head}:{v:h,s:X.head}),ht||30)}};
+  return T}
+function stCell(st,txt,span){const S={ok:X.green,inc:X.yellow,late:X.red,todo:X.blue,none:X.na,na:X.na}[st]||X.num;return{v:txt,s:S,span}}
+
+/* ---------- contrôles internes : données communes ---------- */
+function lastDone(list,siteId){return list.filter(c=>c.status==='done'&&c.site===siteId).sort((a,b)=>a.date<b.date?1:-1)[0]}
+function ctlDefs(){const d=[];
+  if(state.boxes.length)d.push({key:'bx',name:'Boîtes de secours',sheet:SHEET.bx,sites:boxSites(),status:(s,m)=>bxSiteStatus(s,m),checks:state.boxChecks,nok:c=>bxIncomplete(c),unit:'boîte(s) incomplète(s)',count:s=>boxesOf(s).length,conf:c=>{const n=Object.keys(c.res).length;return n?(n-bxIncomplete(c))/n:null}});
+  if(state.fireEquip.length)d.push({key:'fx',name:"Moyens d'extinction",sheet:SHEET.fx,sites:fxSites(),status:(s,m)=>fxSiteStatus(s,m),checks:state.fireChecks,nok:c=>fxNok(c),unit:'point(s) NOK',count:s=>fxEquip(s).length,conf:c=>{const n=Object.keys(c.res).length;return n?(n-fxNok(c))/n:null}});
+  if(state.beltEquip.length)d.push({key:'tp',name:'Bandes transporteuses',sheet:SHEET.tp,sites:tpSites(),status:(s,m)=>tpSiteStatus(s,m),checks:state.beltChecks,nok:c=>tpNok(c),unit:'équipement(s) NOK',count:s=>tpEquip(s).length,conf:c=>{const n=Object.keys(c.res).length;return n?(n-tpNok(c))/n:null}});
+  return d}
+function ctlStatusTxt(d,st){if(st.state==='ok')return'✓ '+fmt(st.check.date).slice(0,5);if(st.state==='inc')return d.nok(st.check)+' NOK · '+fmt(st.check.date).slice(0,5);return{late:'En retard',todo:'À faire',none:'—'}[st.state]||'—'}
+function ctlDeadlines(){const out=[];const T=today(),lim1=addMonths(T,1);
+  /* moyens d'extinction : vérification annuelle organisme, groupée par site et mois */
+  for(const s of fxSites()){const g={};for(const e of fxEquip(s.id)){const st=fxOrgState(e);if(st!=='past'&&st!=='soon')continue;const d=fxOrgDue(e);(g[d]=g[d]||{st,n:0}).n++}
+    for(const [d,x] of Object.entries(g))out.push({st:x.st,date:d+'-01',disp:d.slice(5)+'/'+d.slice(0,4),ctl:"Moyens d'extinction",site:s.name,obj:`Vérification annuelle par l'organisme – ${x.n} point(s)`})}
+  for(const s of tpAUSites()){const st=tpAUState(s.id);if(st==='ok')continue;const d=tpAUDue(s.id);out.push({st:st==='none'?'enc':st,date:d||'0000',disp:d?fmt(d):'—',ctl:'Bandes transporteuses',site:s.name,obj:st==='none'?'Test des arrêts d’urgence : date du dernier test à encoder':'Test semestriel des arrêts d’urgence'})}
+  for(const s of boxSites())for(const b of boxesOf(s.id))state.firstAid.forEach((it,i)=>{if(!it.exp)return;const e=(b.exp||{})[i];if(!e||!expSoon(e))return;out.push({st:expPast(e)?'past':'soon',date:e+'-01',disp:e.slice(5)+'/'+e.slice(0,4),ctl:'Boîtes de secours',site:s.name,obj:`${it.name} – ${b.loc}`})});
+  const rk={past:0,enc:0,soon:1};return out.sort((a,b)=>rk[a.st]-rk[b.st]||(a.date<b.date?-1:a.date>b.date?1:0))}
+function ctlSummary(){const m=ym(today());const defs=ctlDefs();const dl=ctlDeadlines();
+  const per=defs.map(d=>({d,done:d.sites.filter(s=>['ok','inc'].includes(d.status(s.id,m).state)).length,n:d.sites.length,nok:d.sites.reduce((a,s)=>{const c=lastDone(d.checks,s.id);return a+(c?d.nok(c):0)},0)}));
+  return{m,defs,per,dl,past:dl.filter(x=>x.st==='past'||x.st==='enc').length,soon:dl.filter(x=>x.st==='soon').length,nok:per.reduce((a,p)=>a+p.nok,0)}}
+
+/* ---------- tableau de bord ---------- */
+function buildDash(){const T=today(),Y=+T.slice(0,4);const A=state.actions;const done=state.visits.filter(v=>v.status==='done');
+  const closedDelays=A.filter(a=>a.status==='Clôturée'&&a.closed&&a.created).map(a=>daysBetween(a.created,a.closed));
+  const avg=arr=>arr.length?Math.round(arr.reduce((s,x)=>s+x,0)/arr.length):'—';
+  const visitsYear=sid=>done.filter(v=>v.site===sid&&+v.date.slice(0,4)===Y).length+state.visitHistory.filter(h=>h.site===sid&&+h.month.slice(0,4)===Y).reduce((s,h)=>s+h.count,0);
+  const S=XS(SHEET.dash,[30,12,12,12,12,12,12,12,12,12,12,12,12,12],FAM.pilot);S.sh.selected=true;
+  S.banner((state.settings.company||'Derichebourg Belgium')+' · Suivi sécurité des sites',`Situation au ${fmt(T)}  ·  ${state.settings.author||''}${state.settings.role?' – '+state.settings.role:''}  ·  fichier recréé par l'appli à chaque export : ne pas modifier à la main`);
+  /* accès rapide */
+  const defs=ctlDefs();
+  S.row([{v:'Pilotage et visites',s:X.linkLbl},{v:'Synthèse des contrôles',s:X.link,span:2,link:SHEET.syn},{v:"Plan d'actions",s:X.link,span:2,link:SHEET.plan},{v:'Visites',s:X.link,span:2,link:SHEET.vis},{v:'Écarts constatés',s:X.link,span:2,link:SHEET.ec}],22);
+  if(defs.length)S.row([{v:'Contrôles internes',s:X.linkLbl},...defs.map(d=>({v:d.name,s:X.link,span:2,link:d.sheet}))],22);
+  S.row([{v:"Plans d'actions par site",s:X.linkLbl},...state.sites.map(s=>({v:s.name,s:X.link,link:paName(s)}))],22);
+  /* KPI actions */
+  const open=A.filter(a=>situation(a)==='Ouverte').length,late=A.filter(a=>situation(a)==='En retard').length,closed=A.filter(a=>a.status==='Clôturée').length;
+  const lastScores=state.sites.map(s=>lastScore(s.id)).filter(x=>x!=null);const sc=lastScores.length?avg(lastScores)/100:'—';const rate=A.length?closed/A.length:0;
+  S.section("Plan d'actions");
+  S.tiles([{l:'Actions à traiter',v:open+late,cap:'ouvertes + en retard',span:1},{l:'dont en retard',v:late,tone:late?'red':'green',cap:'échéance dépassée'},{l:'Clôturées',v:closed,tone:'green',cap:'depuis le début du suivi'},{l:'Taux de clôture',v:rate,pct:true,tone:rate>=0.8?'green':rate>=0.5?'amber':'red',cap:'clôturées / total'},{l:'Délai moyen de clôture',v:avg(closedDelays),cap:'jours (actions datées)'},{l:`Visites ${Y}`,v:state.sites.reduce((s,x)=>s+visitsYear(x.id),0),cap:`sur ${state.sites.length} sites`},{l:'Score moyen',v:sc,pct:true,tone:typeof sc==='number'?(sc>=0.9?'green':sc>=0.75?'amber':'red'):'',cap:'dernière visite de chaque site'}]);
+  /* KPI contrôles */
+  if(defs.length){const cs=ctlSummary();S.section(`Contrôles internes · ${monthLabel(cs.m)}`);
+    S.tiles([...cs.per.map((p,i)=>({l:p.d.name,v:`${p.done} / ${p.n}`,tone:p.done===p.n?'green':'amber',cap:'sites contrôlés ce mois',span:i===0?1:2})),{l:'Non-conformités',v:cs.nok,tone:cs.nok?'red':'green',cap:'au dernier contrôle de chaque site'},{l:'Échéances dépassées',v:cs.past,tone:cs.past?'red':'green',cap:'ou dates à encoder'},{l:'Échéances à venir',v:cs.soon,tone:cs.soon?'amber':'green',cap:"d'ici le mois prochain"}].slice(0,7))}
+  /* graphiques : réserver la place */
+  S.section('En graphiques');const CH0=S.r,CHH=20;S.skip(3*CHH+1);
+  /* tableaux */
+  const D=S.sh.rows,H=v=>v,RG={};
+  S.section('Par site');S.head(['Site',`Visites ${Y}`,'Dernière visite','Jours depuis','Dernier score','Ouvertes','En retard','Clôturées','Taux de clôture','Délai moyen (j)']);
+  RG.site0=S.r;for(const s of state.sites){const as=A.filter(a=>a.site===s.id);const lv=lastVisitDate(s.id);const d=lv?daysBetween(lv,T):null;const sc2=lastScore(s.id);const cl=as.filter(a=>a.status==='Clôturée');const lt=as.filter(a=>situation(a)==='En retard').length;
+    S.row([{v:s.name,s:X.bold,link:paName(s)},{v:visitsYear(s.id),s:X.num},lv?{v:lv,d:1,s:X.date}:{v:'—',s:X.num},{v:d==null?'—':d,s:d!=null&&d>state.settings.alertDays?X.red:X.num},
+      sc2==null?{v:'—',s:X.num}:{v:sc2/100,s:sc2>=90?X.greenc:sc2>=75?X.yellowc:X.redc},{v:as.filter(a=>situation(a)==='Ouverte').length,s:X.num},{v:lt,s:lt?X.red:X.num},{v:cl.length,s:X.num},{v:as.length?cl.length/as.length:0,s:X.pct},{v:avg(cl.filter(a=>a.closed).map(a=>daysBetween(a.created,a.closed))),s:X.num}])}
+  RG.site1=S.r-1;S.row([{v:'Total',s:X.boldnum},{v:state.sites.reduce((s,x)=>s+visitsYear(x.id),0),s:X.boldnum},{v:'',s:X.boldnum},{v:'',s:X.boldnum},{v:'',s:X.boldnum},{v:open,s:X.boldnum},{v:late,s:X.boldnum},{v:closed,s:X.boldnum},{v:rate,s:X.pct},{v:avg(closedDelays),s:X.boldnum}]);
+  S.section('Par thème');S.head(['Thème','Actions','Ouvertes','En retard','Clôturées','Écarts (visites appli)'],44);
+  const nokByTheme={};for(const v of done)for(const it of itemsOf(v))if(v.answers[it.key]?.v==='NOK')nokByTheme[it.sec.theme]=(nokByTheme[it.sec.theme]||0)+1;
+  RG.th0=S.r;for(const th of THEME_ORDER){const as=A.filter(a=>a.theme===th);if(!as.length&&!nokByTheme[th])continue;const lt=as.filter(a=>situation(a)==='En retard').length;
+    S.row([{v:THEME_NAMES[th],s:X.bold},{v:as.length,s:X.num},{v:as.filter(a=>situation(a)==='Ouverte').length,s:X.num},{v:lt,s:lt?X.red:X.num},{v:as.filter(a=>a.status==='Clôturée').length,s:X.num},{v:nokByTheme[th]||0,s:X.num}])}
+  RG.th1=S.r-1;
+  S.section('Par priorité');S.head(['Priorité','Délai','Ouvertes','En retard','Clôturées']);
+  RG.p0=S.r;for(const p of ['P1','P2','P3','P4',null]){const as=A.filter(a=>(a.prio||null)===p);if(!as.length&&!p)continue;const lt=as.filter(a=>situation(a)==='En retard').length;
+    S.row([{v:p||'Non cotée (reprise)',s:p?X[p]:X.bold},{v:p?PRIO_INFO[p].label.split('· ')[1]:'—',s:X.num},{v:as.filter(a=>situation(a)==='Ouverte').length,s:X.num},{v:lt,s:lt?X.red:X.num},{v:as.filter(a=>a.status==='Clôturée').length,s:X.num}])}
+  RG.p1=S.r-1;
+  S.section(`Visites par mois · ${Y}`);RG.mh=S.head(['Site',...MONTHS,'Total'],22);const mTot=Array(12).fill(0);
+  for(const s of state.sites){const row=[{v:s.name,s:X.bold}];let tot=0;for(let m=1;m<=12;m++){const key=Y+'-'+String(m).padStart(2,'0');const n=done.filter(v=>v.site===s.id&&v.date.slice(0,7)===key).length+state.visitHistory.filter(h=>h.site===s.id&&h.month===key).reduce((a,h)=>a+h.count,0);tot+=n;mTot[m-1]+=n;row.push({v:n||'',s:X.num})}row.push({v:tot,s:X.boldnum});S.row(row)}
+  RG.mt=S.row([{v:'Total',s:X.boldnum},...mTot.map(n=>({v:n,s:X.boldnum})),{v:mTot.reduce((a,b)=>a+b,0),s:X.boldnum}]);
+  S.section(`Actions par mois · ${Y}`);S.head(['',...MONTHS,'Total'],22);
+  const mk=m=>Y+'-'+String(m).padStart(2,'0');const crA=[],clA=[];for(let m=1;m<=12;m++){crA.push(A.filter(a=>(a.created||'').slice(0,7)===mk(m)).length);clA.push(A.filter(a=>a.status==='Clôturée'&&(a.closed||'').slice(0,7)===mk(m)).length)}
+  RG.ac=S.row([{v:'Créées',s:X.bold},...crA.map(n=>({v:n,s:X.num})),{v:crA.reduce((a,b)=>a+b,0),s:X.boldnum}]);
+  RG.acl=S.row([{v:'Clôturées',s:X.bold},...clA.map(n=>({v:n,s:X.num})),{v:clA.reduce((a,b)=>a+b,0),s:X.boldnum}]);
+  {const nd=A.filter(a=>a.status==='Clôturée'&&!a.closed).length;if(nd)S.note(`${nd} action(s) clôturée(s) reprise(s) de l'historique sans date de clôture : elles ne figurent ni dans ce tableau ni dans le délai moyen de clôture.`)}
+  /* graphiques */
+  const SN=SHEET.dash,cv=(c,r0,r1)=>{const o=[];for(let i=r0;i<=r1;i++){const row=D[i];const cell=row&&(row.cells||row)[c];o.push(cell&&typeof cell==='object'?cell.v:cell)}return o};
+  const num=a=>a.map(x=>typeof x==='number'?x:0);
+  const ser=(name,c,r0,r1,color)=>({name,ref:xRef(SN,c,r0,c,r1),vals:num(cv(c,r0,r1)),color});
+  const cats=(r0,r1)=>({ref:xRef(SN,0,r0,0,r1),vals:cv(0,r0,r1).map(String)});
+  const mcats={ref:xRef(SN,1,RG.mh,12,RG.mh),vals:MONTHS};
+  const rowSer=(name,rr,color)=>({name,ref:xRef(SN,1,rr,12,rr),vals:num((D[rr].cells||D[rr]).slice(1,13).map(c=>c.v)),color});
+  const L=[0,CH0,4,CH0+CHH-1],R=[4,CH0,11,CH0+CHH-1],dn=(p,k)=>[p[0],p[1]+k*CHH,p[2],p[3]+k*CHH];
+  const charts=[
+   {at:L,title:'Actions par site',type:'bar',grouping:'stacked',cats:cats(RG.site0,RG.site1),series:[ser('En retard',6,RG.site0,RG.site1,'C41E24'),ser('Ouvertes',5,RG.site0,RG.site1,'E8A33D'),ser('Clôturées',7,RG.site0,RG.site1,'3D8B5A')]},
+   {at:R,off:120000,title:'Taux de clôture par site',type:'bar',pct:true,labels:true,cats:cats(RG.site0,RG.site1),series:[ser('Taux de clôture',8,RG.site0,RG.site1,'262626')]},
+   {at:dn(L,1),title:'Actions par thème',type:'bar',dir:'bar',grouping:'stacked',cats:cats(RG.th0,RG.th1),series:[ser('En retard',3,RG.th0,RG.th1,'C41E24'),ser('Ouvertes',2,RG.th0,RG.th1,'E8A33D'),ser('Clôturées',4,RG.th0,RG.th1,'3D8B5A')]},
+   {at:dn(R,1),off:120000,title:'Actions par priorité',type:'bar',grouping:'stacked',cats:cats(RG.p0,RG.p1),series:[ser('En retard',3,RG.p0,RG.p1,'C41E24'),ser('Ouvertes',2,RG.p0,RG.p1,'E8A33D'),ser('Clôturées',4,RG.p0,RG.p1,'3D8B5A')]},
+   {at:dn(L,2),title:`Visites par mois – ${Y}`,type:'bar',labels:true,cats:mcats,series:[rowSer('Visites',RG.mt,'262626')]},
+   {at:dn(R,2),off:120000,title:`Actions créées et clôturées par mois – ${Y}`,type:'line',cats:mcats,series:[rowSer('Créées',RG.ac,'C41E24'),rowSer('Clôturées',RG.acl,'3D8B5A')]}].filter(c=>c.cats.vals.length);
+  for(const c of charts){const mx=Math.max(1,...c.series.map(x=>c.grouping==='stacked'?0:Math.max(0,...x.vals)),...(c.grouping==='stacked'?c.series[0].vals.map((_,i)=>c.series.reduce((s,x)=>s+(x.vals[i]||0),0)):[]));c.unit=mx<=10?1:mx<=25?5:mx<=60?10:20}
+  S.sh.charts=charts;return S.sh}
+
+/* ---------- synthèse des contrôles internes ---------- */
+function buildCtlSynth(){const cs=ctlSummary();const defs=cs.defs;const W=Math.max(9,1+2*defs.length+2);
+  const S=XS(SHEET.syn,[18,...Array(W-1).fill(13)],FAM.pilot);
+  S.banner('Contrôles internes · synthèse',`${monthLabel(cs.m)}  ·  situation au ${fmt(today())}  ·  le détail de chaque contrôle est dans son onglet (liens ci-dessous)`);
+  S.row([{v:'Onglets',s:X.linkLbl},...defs.map(d=>({v:d.name,s:X.link,span:2,link:d.sheet})),{v:'Tableau de bord',s:X.link,span:2,link:SHEET.dash}],22);
+  S.section('Indicateurs du mois');
+  S.tiles([...cs.per.map((p,i)=>({l:p.d.name,v:`${p.done} / ${p.n}`,tone:p.done===p.n?'green':'amber',cap:'sites contrôlés ce mois',span:i===0?1:2})),{l:'Non-conformités',v:cs.nok,tone:cs.nok?'red':'green',cap:'au dernier contrôle'}].slice(0,Math.floor((W+1)/2)));
+  S.tiles([{l:'Échéances dépassées',v:cs.past,tone:cs.past?'red':'green',cap:'ou dates à encoder',span:1},{l:'Échéances à venir',v:cs.soon,tone:cs.soon?'amber':'green',cap:"d'ici le mois prochain"},{l:'Équipements suivis',v:defs.reduce((a,d)=>a+d.sites.reduce((b,s)=>b+d.count(s.id),0),0),cap:'boîtes, points incendie, équipements'}]);
+  S.section(`État du mois · ${monthLabel(cs.m)}`);
+  S.head(['Site',...defs.map(d=>({v:d.name,span:2}))]);
+  for(const s of state.sites){S.row([{v:s.name,s:X.bold,link:paName(s)},...defs.map(d=>{if(!d.sites.find(x=>x.id===s.id))return stCell('na','non concerné',2);const st=d.status(s.id,cs.m);return stCell(st.state,ctlStatusTxt(d,st),2)})],20)}
+  S.note('✓ fait et conforme · NOK : fait avec non-conformité(s), traitées dans le plan d’actions · À faire : mois en cours · En retard : mois écoulé sans contrôle');
+  S.section('Échéances à surveiller');
+  if(!cs.dl.length)S.note('Aucune échéance dépassée ou proche.');
+  else{S.head(['Situation','Échéance',{v:'Contrôle',span:2},'Site',{v:'Objet',span:Math.max(2,W-5)}]);
+    for(const x of cs.dl)S.row([x.st==='soon'?{v:'À prévoir',s:X.yellow}:x.st==='enc'?{v:'À encoder',s:X.red}:{v:'Échue',s:X.red},{v:x.disp,s:X.num},{v:x.ctl,s:X.txt,span:2},{v:x.site,s:X.txt},{v:x.obj,s:X.txt,span:Math.max(2,W-5)}],18)}
+  /* conformité */
+  if(defs.length){S.section('Conformité au dernier contrôle');const h=S.head(['Site',...defs.map(d=>({v:d.name,span:2}))]);const r0=S.r;
+    for(const s of state.sites)S.row([{v:s.name,s:X.bold},...defs.map(d=>{const c=d.sites.find(x=>x.id===s.id)&&lastDone(d.checks,s.id);const v=c?d.conf(c):null;return v==null?{v:d.sites.find(x=>x.id===s.id)?'pas encore contrôlé':'',s:X.na,span:2}:{v,s:v>=1?X.greenc:v>=0.8?X.yellowc:X.redc,span:2}})]);
+    const r1=S.r-1;const CH0=S.r+1;S.skip(20);
+    const col=['C41E24','E8A33D','262626','2F6FB0','2E7D4F'];const SN=SHEET.syn;const rows=S.sh.rows;
+    const vals=c=>{const o=[];for(let i=r0;i<=r1;i++){const cell=(rows[i].cells||rows[i])[c];o.push(cell&&typeof cell.v==='number'?cell.v:null)}return o};
+    S.sh.charts=[{at:[0,CH0,Math.min(W,9),CH0+19],title:'Taux de conformité au dernier contrôle, par site',type:'bar',pct:true,cats:{ref:xRef(SN,0,r0,0,r1),vals:state.sites.map(s=>s.name)},series:defs.map((d,i)=>({name:d.name,ref:xRef(SN,1+2*i,r0,1+2*i,r1),vals:vals(1+2*i),color:col[i]}))}]}
+  return S.sh}
+
+/* ---------- plans d'actions ---------- */
+function actionRow(a,withSite){const sit=situation(a);const T=today();return[{v:a.num,s:X.num},...(withSite?[{v:site(a.site).name,s:X.txt}]:[]),a.created?{v:a.created,d:1,s:X.date}:{v:'',s:X.txt},{v:THEME_NAMES[a.theme]||'',s:X.txt},{v:a.text,s:X.txt},{v:a.resp||'',s:X.txt},{v:a.prio||'—',s:a.prio?X[a.prio]:X.num},a.due?{v:a.due,d:1,s:X.date}:{v:'',s:X.txt},{v:sit,s:sit==='Clôturée'?X.green:sit==='En retard'?X.red:X.blue}]}
+function buildPlanSheet(){const A=state.actions;const S=XS(SHEET.plan,[7,12,12,24,56,18,10,12,13,12,9,20],FAM.act);
+  S.banner("Plan d'actions · tous les sites",`${A.length} actions  ·  filtre les colonnes pour retrouver un site, un responsable ou une situation  ·  un onglet par site plus loin`);
+  const h=S.head(['N°','Site','Créée le','Thème','Action','Responsable','Priorité','Échéance','Situation','Clôturée le','Délai (j)','Origine']);
+  const sorted=A.slice().sort((a,b)=>a.site===b.site?a.num-b.num:a.site.localeCompare(b.site,'fr'));
+  for(const a of sorted)S.row([...actionRow(a,true),a.closed?{v:a.closed,d:1,s:X.date}:{v:'',s:X.txt},{v:a.closed&&a.created?daysBetween(a.created,a.closed):'',s:X.num},{v:a.origin||'',s:X.txt}]);
+  S.sh.freeze={row:h+1};S.sh.filter=`A${h+1}:L${S.r}`;return S.sh}
+function buildSitePlans(){const T=today();const avg=arr=>arr.length?Math.round(arr.reduce((s,x)=>s+x,0)/arr.length):'—';
+  return state.sites.map(s=>{const as=state.actions.filter(a=>a.site===s.id);
+    const todo=as.filter(a=>a.status!=='Clôturée').sort((a,b)=>{const la=situation(a)==='En retard'?0:1,lb=situation(b)==='En retard'?0:1;if(la!==lb)return la-lb;return (a.due||'9999')<(b.due||'9999')?-1:(a.due||'9999')>(b.due||'9999')?1:a.num-b.num});
+    const cl=as.filter(a=>a.status==='Clôturée').sort((a,b)=>(a.closed||'')<(b.closed||'')?1:-1);const late=todo.filter(a=>situation(a)==='En retard').length;const dl=cl.filter(a=>a.closed&&a.created).map(a=>daysBetween(a.created,a.closed));const rate=as.length?cl.length/as.length:0;
+    const S=XS(paName(s),[7,12,22,58,16,10,12,13,12,18],FAM.act);
+    S.banner(`Plan d'actions · ${s.name}`,`Situation au ${fmt(T)}${s.resp?'  ·  responsable du site : '+s.resp:''}  ·  ${state.settings.company||''}`);
+    S.row([{v:'Retour',s:X.linkLbl},{v:'Tableau de bord',s:X.link,span:2,link:SHEET.dash},{v:"Plan d'actions (tous les sites)",s:X.link,link:SHEET.plan}],22);S.skip();
+    S.tiles([{l:'À traiter',v:todo.length,span:3,cap:'actions ouvertes'},{l:'dont en retard',v:late,tone:late?'red':'green',span:1,cap:'échéance dépassée'},{l:'Clôturées',v:cl.length,tone:'green',cap:'depuis le début'},{l:'Taux de clôture',v:rate,pct:true,tone:rate>=0.8?'green':rate>=0.5?'amber':'red',cap:'clôturées / total'},{l:'Délai moyen de clôture',v:avg(dl),cap:'jours'}]);
+    S.section(`Actions à traiter (${todo.length}) · les retards en premier`);
+    S.head(['N°','Créée le','Thème','Action','Responsable','Priorité','Échéance','Situation','Retard (jours)','Origine']);
+    if(!todo.length)S.note('Aucune action à traiter.');
+    for(const a of todo){const sit=situation(a);S.row([...actionRow(a,false),{v:sit==='En retard'?daysBetween(a.due,T):'',s:sit==='En retard'?X.red:X.num},{v:a.origin||'',s:X.txt}])}
+    S.section(`Actions clôturées (${cl.length})`);
+    S.head(['N°','Créée le','Thème','Action','Responsable','Priorité','Échéance','Clôturée le','Délai (jours)','Origine']);
+    if(!cl.length)S.note('Aucune action clôturée.');
+    for(const a of cl){const r=actionRow(a,false);r[7]=a.closed?{v:a.closed,d:1,s:X.date}:{v:'',s:X.txt};S.row([...r,{v:a.closed&&a.created?daysBetween(a.created,a.closed):'',s:X.num},{v:a.origin||'',s:X.txt}])}
+    return S.sh})}
+
+/* ---------- visites ---------- */
+function buildVisitSheets(){const done=state.visits.filter(v=>v.status==='done');
+  const V=XS(SHEET.vis,[12,13,26,10,7,7,7,13,40],FAM.vis);V.banner('Visites sécurité',`${done.length} visite(s) réalisée(s) avec l'appli  ·  la plus récente en premier`);
+  const h=V.head(['Date','Site','Objet','Score','OK','NOK','N/O','Actions créées','Diffusion']);
+  for(const v of done.slice().sort((a,b)=>a.date<b.date?1:-1)){const sc=v.score;V.row([{v:v.date,d:1,s:X.date},{v:site(v.site).name,s:X.txt},{v:v.objet||'',s:X.txt},sc==null?{v:'—',s:X.num}:{v:sc/100,s:sc>=90?X.greenc:sc>=75?X.yellowc:X.redc},{v:v.stats?.ok||0,s:X.num},{v:v.stats?.nok||0,s:X.num},{v:v.stats?.no||0,s:X.num},{v:(v.actionIds||[]).length,s:X.num},{v:v.diffusion||'',s:X.txt}])}
+  const last=V.r;V.sh.freeze={row:h+1};if(done.length)V.sh.filter=`A${h+1}:I${last}`;
+  if(state.visitHistory.length){V.section("Historique avant l'appli (nombre de visites par mois)");for(const x of state.visitHistory)V.row([{v:x.month,s:X.num},{v:site(x.site).name,s:X.txt},{v:x.count+' visite(s)',s:X.txt}])}
+  const E=XS(SHEET.ec,[12,13,28,36,56,10],FAM.vis);E.banner('Écarts constatés en visite','Chaque point NOK des visites réalisées avec l’appli, avec le numéro de l’action créée');
+  const h2=E.head(['Date','Site','Thème','Point contrôlé','Constat','Action N°']);
+  for(const v of done.slice().sort((a,b)=>a.date<b.date?1:-1))for(const it of itemsOf(v)){const a=v.answers[it.key];if(a?.v!=='NOK')continue;const ac=state.actions.find(x=>x.id===a.actionId);E.row([{v:v.date,d:1,s:X.date},{v:site(v.site).name,s:X.txt},{v:it.sec.name,s:X.txt},{v:it.label,s:X.txt},{v:a.c||'',s:X.txt},{v:ac?ac.num:'—',s:X.num}])}
+  E.sh.freeze={row:h2+1};if(E.r>h2+1)E.sh.filter=`A${h2+1}:F${E.r}`;
+  return[V.sh,E.sh]}
+
+/* ---------- onglets des contrôles ---------- */
+const XGRID=[16,22,...Array(12).fill(9.5)];
+function planningRows(S,label2,sites,rowsOf){const Y=+today().slice(0,4),curM=ym(today());S.head(['Site',label2,...MONTHS],22);
+  for(const s of sites)for(const [lab,cellOf] of rowsOf(s)){const row=[{v:s.name,s:X.bold},{v:lab,s:X.txt}];
+    for(let mm=1;mm<=12;mm++){const m=Y+'-'+String(mm).padStart(2,'0');const c=cellOf(m);if(c)row.push(c);else if(m<state.settings.ctlStart||m>curM)row.push({v:'',s:X.num});else row.push({v:m<curM?'Non fait':'À faire',s:m<curM?X.red:X.blue})}S.row(row,18)}}
+function ctlTiles(S,d,extra){const m=ym(today());const done=d.sites.filter(s=>['ok','inc'].includes(d.status(s.id,m).state)).length;const nok=d.sites.reduce((a,s)=>{const c=lastDone(d.checks,s.id);return a+(c?d.nok(c):0)},0);
+  S.tiles([{l:'Sites contrôlés ce mois',v:`${done} / ${d.sites.length}`,tone:done===d.sites.length?'green':'amber',cap:monthLabel(m)},{l:'Non-conformités',v:nok,tone:nok?'red':'green',cap:'au dernier contrôle de chaque site',span:3},...extra])}
+function navRow(S){S.row([{v:'Retour',s:X.linkLbl},{v:'Tableau de bord',s:X.link,span:3,link:SHEET.dash},{v:'Synthèse des contrôles',s:X.link,span:3,link:SHEET.syn}],22);S.skip()}
+function buildBoxSheet(d){const Y=+today().slice(0,4);const S=XS(SHEET.bx,XGRID,FAM.ctl);
+  S.banner('Boîtes de secours',`Contrôle mensuel · ${state.boxes.length} boîtes sur ${d.sites.length} sites · suivi depuis ${monthLabel(state.settings.ctlStart)}`);navRow(S);
+  const restock=[];for(const s of d.sites){const last=lastDone(state.boxChecks,s.id);if(last)for(const x of bxRestock(last))restock.push([s,last,x])}
+  const exps=[];let toEnc=0;for(const s of d.sites)for(const b of boxesOf(s.id))state.firstAid.forEach((it,i)=>{if(!it.exp)return;const e=(b.exp||{})[i];if(!e){toEnc++;return}if(expSoon(e))exps.push([s,b,it,e])});
+  ctlTiles(S,d,[{l:'Articles à réassortir',v:restock.reduce((a,x)=>a+x[2].qty,0),tone:restock.length?'amber':'green',cap:'dernier contrôle',span:3},{l:'Péremptions',v:exps.length,tone:exps.length?'red':'green',cap:"dépassées ou d'ici le mois prochain",span:3},{l:'Boîtes suivies',v:state.boxes.length,cap:'',span:3}]);
+  S.section(`Planning ${Y}`);
+  planningRows(S,'Boîte',d.sites,s=>boxesOf(s.id).map(b=>[b.loc,m=>{const c=bxLastInMonth(s.id,m);const r=c&&c.res[b.id];return r?{v:(r.st==='ok'?'✓ ':'! ')+fmt(c.date).slice(0,5),s:r.st==='ok'?X.green:X.yellow}:null}]));
+  S.note('✓ complète · ! incomplète (voir le réassort) · Non fait : mois écoulé sans contrôle');
+  S.section('Réassort à faire · dernier contrôle de chaque site');
+  if(!restock.length)S.note('Rien à réassortir.');else{S.head(['Site','Boîte',{v:'Article',span:5},{v:'Motif',span:3},{v:'Réf. VDP',span:2},'Qté','Constaté le']);
+    for(const [s,c,x] of restock)S.row([{v:s.name,s:X.txt},{v:x.box,s:X.txt},{v:x.name+(x.desc?' – '+x.desc:''),s:X.txt,span:5},{v:x.why,s:x.why==='Manquant'?X.txt:X.yellow,span:3},{v:x.ref?String(x.ref):'—',s:X.num,span:2},{v:x.qty,s:X.boldnum},{v:c.date,d:1,s:X.date}])}
+  S.section('Péremptions à surveiller');
+  if(!exps.length)S.note("Aucun article périmé ou à remplacer d'ici le mois prochain.");else{S.head(['Site','Boîte',{v:'Article',span:6},{v:'Péremption',span:3},{v:'Situation',span:3}]);
+    for(const [s,b,it,e] of exps.sort((a,b)=>a[3]<b[3]?-1:1))S.row([{v:s.name,s:X.txt},{v:b.loc,s:X.txt},{v:it.name+(it.desc?' '+it.desc:''),s:X.txt,span:6},{v:e.slice(5)+'/'+e.slice(0,4),s:X.num,span:3},expPast(e)?{v:'Dépassée',s:X.red,span:3}:{v:'À remplacer',s:X.yellow,span:3}])}
+  if(toEnc)S.note(`${toEnc} date(s) de péremption pas encore encodée(s) dans l'appli.`);
+  return S.sh}
+function buildFireSheet(d){const Y=+today().slice(0,4);const S=XS(SHEET.fx,XGRID,FAM.ctl);
+  S.banner("Moyens d'extinction",`Contrôle mensuel · ${state.fireEquip.length} points sur ${d.sites.length} sites · vérification annuelle par l'organisme suivie`);navRow(S);
+  const orgPast=state.fireEquip.filter(e=>fxOrgState(e)==='past').length,orgSoon=state.fireEquip.filter(e=>fxOrgState(e)==='soon').length,orgNone=state.fireEquip.filter(e=>fxOrgState(e)==='none').length;
+  ctlTiles(S,d,[{l:'Vérif. organisme échues',v:orgPast,tone:orgPast?'red':'green',cap:'plus de 12 mois',span:3},{l:'Vérif. organisme à prévoir',v:orgSoon,tone:orgSoon?'amber':'green',cap:"d'ici le mois prochain",span:3},{l:'Points suivis',v:state.fireEquip.length,cap:orgNone?orgNone+' sans date organisme':'',span:3}]);
+  S.section(`Planning ${Y}`);
+  planningRows(S,'Points',d.sites,s=>[[String(fxEquip(s.id).length),m=>{const c=fxLastInMonth(s.id,m);if(!c)return null;const n=fxNok(c);return{v:(n?n+' NOK ':'✓ ')+fmt(c.date).slice(0,5),s:n?X.yellow:X.green}}]]);
+  const todo=[];for(const s of d.sites){const last=lastDone(state.fireChecks,s.id);for(const e of fxEquip(s.id)){const r=last&&last.res[e.id];const os=fxOrgState(e);if((r&&r.st==='nok')||os==='past'||os==='soon')todo.push([s,e,r,os])}}
+  S.section('Points à traiter · non conformes ou vérification organisme à prévoir');
+  if(!todo.length)S.note('Aucun point à traiter.');else{S.head(['Site','N°',{v:'Emplacement',span:4},{v:'Équipement',span:3},{v:'Dernier contrôle',span:3},{v:'Vérif. organisme',span:2}]);
+    for(const [s,e,r,os] of todo){const d2=fxOrgDue(e);S.row([{v:s.name,s:X.txt},{v:(e.zone?e.zone+' ':'')+e.num,s:X.num},{v:e.loc,s:X.txt,span:4},{v:e.label,s:X.txt,span:3},r?{v:fxCritTxt(e,r.c)+(r.note&&r.note.trim()?' – '+r.note.trim():''),s:r.st==='ok'?X.green:X.red,span:3}:{v:'—',s:X.na,span:3},os==='past'?{v:'Échue '+d2.slice(5)+'/'+d2.slice(0,4),s:X.red,span:2}:os==='soon'?{v:'Avant '+d2.slice(5)+'/'+d2.slice(0,4),s:X.yellow,span:2}:{v:e.org?e.org.slice(5)+'/'+e.org.slice(0,4):'—',s:X.num,span:2}])}}
+  S.section('Inventaire complet');
+  S.head(['Site','N°',{v:'Emplacement',span:4},{v:'Équipement',span:3},'Classe',{v:'Organisme',span:2},'Échéance']);
+  for(const s of d.sites)for(const e of fxEquip(s.id)){const os=fxOrgState(e),d2=fxOrgDue(e);S.row([{v:s.name,s:X.txt},{v:(e.zone?e.zone+' ':'')+e.num,s:X.num},{v:e.loc,s:X.txt,span:4},{v:e.label,s:X.txt,span:3},{v:e.cls||'',s:X.num},{v:e.org?e.org.slice(5)+'/'+e.org.slice(0,4):'—',s:X.num,span:2},d2?{v:d2.slice(5)+'/'+d2.slice(0,4),s:os==='past'?X.red:os==='soon'?X.yellow:X.num}:{v:'—',s:X.num}],16)}
+  return S.sh}
+function buildBeltSheet(d){const Y=+today().slice(0,4);const S=XS(SHEET.tp,XGRID,FAM.ctl);
+  S.banner('Bandes transporteuses',`Contrôle mensuel · ${state.beltEquip.length} équipements sur ${d.sites.length} sites · test des arrêts d’urgence 2 fois par an`);navRow(S);
+  const au=tpAUSites();const auBad=au.filter(s=>tpAUState(s.id)!=='ok').length;
+  ctlTiles(S,d,[{l:'Tests arrêts d’urgence',v:`${au.length-auBad} / ${au.length}`,tone:auBad?'red':'green',cap:'sites à jour',span:3},{l:'Équipements suivis',v:state.beltEquip.length,cap:'',span:6}]);
+  S.section(`Planning ${Y}`);
+  planningRows(S,'Équipements',d.sites,s=>[[String(tpEquip(s.id).length),m=>{const c=tpLastInMonth(s.id,m);if(!c)return null;const n=tpNok(c);return{v:(n?n+' NOK ':'✓ ')+fmt(c.date).slice(0,5),s:n?X.yellow:X.green}}]]);
+  S.section('Tests des arrêts d’urgence · 2 fois par an');
+  S.head(['Site',{v:'Dernier test',span:3},{v:'Prochain test avant',span:3},{v:'Situation',span:3}]);
+  for(const s of au){const st=tpAUState(s.id),last=(state.beltAU||{})[s.id],dd=tpAUDue(s.id);S.row([{v:s.name,s:X.bold},last?{v:last,d:1,s:X.date,span:3}:{v:'à encoder',s:X.red,span:3},dd?{v:dd,d:1,s:X.date,span:3}:{v:'—',s:X.num,span:3},st==='past'?{v:'Échu',s:X.red,span:3}:st==='soon'?{v:'À prévoir',s:X.yellow,span:3}:st==='ok'?{v:'À jour',s:X.green,span:3}:{v:'Date à encoder',s:X.red,span:3}])}
+  const noks=[];for(const s of d.sites){const last=lastDone(state.beltChecks,s.id);if(!last)continue;for(const e of tpEquip(s.id)){const r=last.res[e.id];if(r&&r.st==='nok')noks.push([s,e,r,last])}}
+  S.section('Non-conformités au dernier contrôle');
+  if(!noks.length)S.note('Aucune non-conformité.');else{S.head(['Site',{v:'Équipement',span:2},{v:'Constat',span:4},{v:'Remarque',span:5},{v:'Contrôlé le',span:2}]);
+    for(const [s,e,r,c] of noks)S.row([{v:s.name,s:X.txt},{v:e.name,s:X.bold,span:2},{v:tpCritTxt(e,r.c),s:X.red,span:4},{v:r.note||'',s:X.txt,span:5},{v:c.date,d:1,s:X.date,span:2}])}
+  S.section('Inventaire');
+  S.head(['Site','Groupe',{v:'Équipement',span:3},{v:'Arrêt d’urgence',span:4},{v:'Dernier résultat',span:5}]);
+  for(const s of d.sites){const last=lastDone(state.beltChecks,s.id);for(const e of tpEquip(s.id)){const r=last&&last.res[e.id];S.row([{v:s.name,s:X.txt},{v:e.grp||'',s:X.num},{v:e.name,s:X.bold,span:3},{v:e.au||'–',s:X.txt,span:4},r?{v:tpCritTxt(e,r.c),s:r.st==='ok'?X.green:X.red,span:5}:{v:'pas encore contrôlé',s:X.na,span:5}],16)}}
+  return S.sh}
+
+/* ---------- classeur ---------- */
+function buildWorkbook(){xlStyles();const defs=ctlDefs();
+  const json=JSON.stringify({format:'visites-securite',version:1,exported:new Date().toISOString(),data:state});const SB=[[{v:"Sauvegarde de l'appli Visites sécurité – ne pas modifier"}]];for(let i=0;i<json.length;i+=30000)SB.push([{v:json.slice(i,i+30000)}]);
+  const ctl=defs.map(d=>d.key==='bx'?buildBoxSheet(d):d.key==='fx'?buildFireSheet(d):buildBeltSheet(d));
+  return workbookZip([buildDash(),...(defs.length?[buildCtlSynth()]:[]),buildPlanSheet(),...buildSitePlans(),...buildVisitSheets(),...ctl,{name:'_sauvegarde',rows:SB,hidden:true}])}
 
 /* ===================== GRAPHIQUES EXCEL ===================== */
 const CNS='xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
@@ -1095,7 +1327,7 @@ function download(name,blob){const u=URL.createObjectURL(blob);const a=document.
 async function saveFile(name,blob){const m=$('#dl-msg');try{download(name,blob);if(m)m.textContent='Téléchargé : '+name;toast('Fichier téléchargé');return true}catch(e){if(m)m.textContent="Le téléchargement n'a pas abouti.";return false}}
 const ready={};
 async function makeFiles(id,pdf,xlsx){const out=[];if(pdf){const v=state.visits.find(x=>x.id===id);const k='pdf:'+id;if(!ready[k])ready[k]=buildReport(v).then(b=>new File([b],`Rapport visite ${safeName(site(v.site).name)} ${v.date}.pdf`,{type:'application/pdf'}));out.push(await ready[k])}
-  if(xlsx)out.push(new File([buildWorkbook()],`Suivi securite sites ${today()}.xlsx`,{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));return out}
+  if(xlsx)out.push(new File([buildWorkbook()],`Suivi sécurité - Derichebourg Belgium.xlsx`,{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));return out}
 async function sendFiles(id,pdf,xlsx){const m=$('#dl-msg');if(m)m.textContent='Préparation des fichiers…';
   try{const files=await makeFiles(id,pdf,xlsx);const v=id&&state.visits.find(x=>x.id===id);
     if(navigator.canShare&&navigator.canShare({files})){try{await navigator.share({files,title:v?`Rapport de visite ${site(v.site).name} ${fmt(v.date)}`:'Suivi sécurité des sites',text:v?`Rapport de visite ${site(v.site).name} du ${fmt(v.date)} et suivi des actions.`:'Suivi sécurité des sites.'});if(m)m.textContent='Fichiers transmis.';return}
@@ -1107,7 +1339,7 @@ function safeName(s){return s.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[
 async function savePdf(id){const v=state.visits.find(x=>x.id===id);if(!v)return;const m=$('#dl-msg');if(m)m.textContent='Création du rapport…';
   try{const bytes=await buildReport(v);await saveFile(`Rapport visite ${safeName(site(v.site).name)} ${v.date}.pdf`,new Blob([bytes],{type:'application/pdf'}))}catch(err){console.error(err);if(m)m.textContent='Le rapport n\'a pas pu être créé.'}}
 async function saveXlsx(){const m=$('#dl-msg');if(m)m.textContent='Création du fichier Excel…';
-  try{const bytes=buildWorkbook();await saveFile(`Suivi securite sites ${stamp()}.xlsx`,new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}))}catch(err){console.error(err);if(m)m.textContent='Le fichier Excel n\'a pas pu être créé.'}}
+  try{const bytes=buildWorkbook();await saveFile(`Suivi sécurité - Derichebourg Belgium.xlsx`,new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}))}catch(err){console.error(err);if(m)m.textContent='Le fichier Excel n\'a pas pu être créé.'}}
 
 /* ===================== PDF (générateur intégré) ===================== */
 const HW={"Helvetica": [278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556, 1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556, 333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584, 761, 556, 761, 222, 556, 333, 1000, 556, 556, 333, 1000, 667, 333, 1000, 761, 611, 761, 761, 222, 222, 333, 333, 350, 556, 1000, 333, 1000, 500, 333, 944, 761, 500, 667, 278, 333, 556, 556, 556, 556, 260, 556, 333, 737, 370, 556, 584, 333, 737, 333, 400, 584, 333, 333, 333, 556, 537, 278, 333, 333, 365, 556, 834, 834, 834, 611, 667, 667, 667, 667, 667, 667, 1000, 722, 667, 667, 667, 667, 278, 278, 278, 278, 722, 722, 778, 778, 778, 778, 778, 584, 778, 722, 722, 722, 722, 667, 667, 611, 556, 556, 556, 556, 556, 556, 889, 500, 556, 556, 556, 556, 278, 278, 278, 278, 556, 556, 556, 556, 556, 556, 556, 584, 611, 556, 556, 556, 556, 500, 556, 500], "Helvetica-Bold": [278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 333, 333, 584, 584, 584, 611, 975, 722, 722, 722, 722, 667, 611, 778, 722, 278, 556, 722, 611, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 333, 278, 333, 584, 556, 333, 556, 611, 556, 611, 556, 333, 611, 611, 278, 278, 556, 278, 889, 611, 611, 611, 611, 389, 556, 333, 611, 556, 778, 556, 556, 500, 389, 280, 389, 584, 761, 556, 761, 278, 556, 500, 1000, 556, 556, 333, 1000, 667, 333, 1000, 761, 611, 761, 761, 278, 278, 500, 500, 350, 556, 1000, 333, 1000, 556, 333, 944, 761, 500, 667, 278, 333, 556, 556, 556, 556, 280, 556, 333, 737, 370, 556, 584, 333, 737, 333, 400, 584, 333, 333, 333, 611, 556, 278, 333, 333, 365, 556, 834, 834, 834, 611, 722, 722, 722, 722, 722, 722, 1000, 722, 667, 667, 667, 667, 278, 278, 278, 278, 722, 722, 778, 778, 778, 778, 778, 584, 778, 722, 722, 722, 722, 667, 667, 611, 556, 556, 556, 556, 556, 556, 889, 556, 556, 556, 556, 556, 278, 278, 278, 278, 611, 611, 611, 611, 611, 611, 611, 584, 611, 611, 611, 611, 611, 556, 611, 556]};
@@ -1240,13 +1472,13 @@ async function unzip(buf){const u=new Uint8Array(buf),dv=new DataView(buf);let e
 
 /* ===================== EXCEL (générateur intégré) ===================== */
 const X={def:0,head:1,txt:2,date:3,num:4,pct:5,title:6,sub:7,red:8,green:9,blue:10,P1:11,P2:12,P3:13,P4:14,kpi:15,kpil:16,bold:17,yellow:18,plain:19,kpipct:20,redc:21,greenc:22,yellowc:23,boldnum:24,section:25};
-function stylesXml(){const fills=['none','gray125','2B2B2B','C6EFCE','FFC7CE','FFEB9C','DDEBF7','F2F2F2','C00000','F4B084','FFE699','A9D08E'];
+function stylesXml(){const fills=['none','gray125','2B2B2B','C6EFCE','FFC7CE','FFEB9C','DDEBF7','F2F2F2','C00000','F4B084','FFE699','A9D08E','262626','F7F7F7','EEF3F8'];
  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
 <numFmts count="2"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/><numFmt numFmtId="165" formatCode="0%"/></numFmts>
-<fonts count="8"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><b/><sz val="16"/><color rgb="FF1A1A1A"/><name val="Arial"/></font><font><b/><sz val="10"/><name val="Arial"/></font><font><i/><sz val="9"/><color rgb="FF595959"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FF9C0006"/><name val="Arial"/></font><font><b/><sz val="22"/><color rgb="FF1A1A1A"/><name val="Arial"/></font><font><b/><sz val="12"/><color rgb="FF1A1A1A"/><name val="Arial"/></font></fonts>
+<fonts count="18"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><b/><sz val="16"/><color rgb="FF1A1A1A"/><name val="Arial"/></font><font><b/><sz val="10"/><name val="Arial"/></font><font><i/><sz val="9"/><color rgb="FF595959"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FF9C0006"/><name val="Arial"/></font><font><b/><sz val="22"/><color rgb="FF1A1A1A"/><name val="Arial"/></font><font><b/><sz val="12"/><color rgb="FF1A1A1A"/><name val="Arial"/></font><font><b/><sz val="18"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><sz val="10"/><color rgb="FFC9C9C9"/><name val="Arial"/></font><font><b/><sz val="9"/><color rgb="FF595959"/><name val="Arial"/></font><font><b/><sz val="22"/><color rgb="FFC41E24"/><name val="Arial"/></font><font><b/><sz val="22"/><color rgb="FF2E7D4F"/><name val="Arial"/></font><font><b/><sz val="22"/><color rgb="FFB7791F"/><name val="Arial"/></font><font><i/><sz val="8"/><color rgb="FF7F7F7F"/><name val="Arial"/></font><font><u/><sz val="10"/><color rgb="FF0563C1"/><name val="Arial"/></font><font><sz val="9"/><color rgb="FF8C8C8C"/><name val="Arial"/></font><font><b/><sz val="13"/><color rgb="FF262626"/><name val="Arial"/></font></fonts>
 <fills count="${fills.length}">${fills.map(f=>f==='none'||f==='gray125'?`<fill><patternFill patternType="${f}"/></fill>`:`<fill><patternFill patternType="solid"><fgColor rgb="FF${f}"/><bgColor indexed="64"/></patternFill></fill>`).join('')}</fills>
-<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFBFBFBF"/></left><right style="thin"><color rgb="FFBFBFBF"/></right><top style="thin"><color rgb="FFBFBFBF"/></top><bottom style="thin"><color rgb="FFBFBFBF"/></bottom><diagonal/></border></borders>
-<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="26">
+<borders count="4"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFBFBFBF"/></left><right style="thin"><color rgb="FFBFBFBF"/></right><top style="thin"><color rgb="FFBFBFBF"/></top><bottom style="thin"><color rgb="FFBFBFBF"/></bottom><diagonal/></border><border><left/><right/><top/><bottom style="medium"><color rgb="FFC41E24"/></bottom><diagonal/></border><border><left style="medium"><color rgb="FFFFFFFF"/></left><right style="medium"><color rgb="FFFFFFFF"/></right><top style="medium"><color rgb="FFFFFFFF"/></top><bottom style="medium"><color rgb="FFFFFFFF"/></bottom><diagonal/></border></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="43">
 <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
 <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
 <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>
@@ -1273,7 +1505,23 @@ function stylesXml(){const fills=['none','gray125','2B2B2B','C6EFCE','FFC7CE','F
 <xf numFmtId="165" fontId="0" fillId="5" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="top"/></xf>
 <xf numFmtId="0" fontId="3" fillId="7" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="top"/></xf>
 <xf numFmtId="0" fontId="7" fillId="0" borderId="0" xfId="0" applyFont="1"/>
-</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`}
+<xf numFmtId="0" fontId="8" fillId="12" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" indent="1"/></xf>
+<xf numFmtId="0" fontId="9" fillId="12" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" indent="1"/></xf>
+<xf numFmtId="0" fontId="17" fillId="0" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="bottom"/></xf>
+<xf numFmtId="0" fontId="10" fillId="7" borderId="3" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+<xf numFmtId="0" fontId="6" fillId="7" borderId="3" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="11" fillId="7" borderId="3" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="12" fillId="7" borderId="3" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="13" fillId="7" borderId="3" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="165" fontId="6" fillId="7" borderId="3" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="165" fontId="12" fillId="7" borderId="3" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="165" fontId="13" fillId="7" borderId="3" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="165" fontId="11" fillId="7" borderId="3" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="14" fillId="7" borderId="3" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="top" wrapText="1"/></xf>
+<xf numFmtId="0" fontId="15" fillId="14" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="16" fillId="7" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="top"/></xf>
+<xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="top" wrapText="1"/></xf>
+<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`}
 const xesc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
 function colL(n){let s='';n++;while(n){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26)}return s}
 function serial(s){return Math.round((Date.UTC(...s.split('-').map((x,i)=>i===1?x-1:+x))-Date.UTC(1899,11,30))/86400000)}
@@ -1281,7 +1529,7 @@ function sheetXml(sh){let rows='';sh.rows.forEach((r,ri)=>{if(!r)return;const ce
     const ref=colL(ci)+(ri+1),s=o.s!=null?` s="${o.s}"`:'';if(o.d)cs+=`<c r="${ref}"${s}><v>${serial(o.v)}</v></c>`;else if(typeof o.v==='number')cs+=`<c r="${ref}"${s}><v>${o.v}</v></c>`;else cs+=`<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${xesc(o.v)}</t></is></c>`});
   rows+=`<row r="${ri+1}"${r.ht?` ht="${r.ht}" customHeight="1"`:''}>${cs}</row>`});
  const pane=sh.freeze?`<pane ${sh.freeze.col?`xSplit="${sh.freeze.col}" `:''}ySplit="${sh.freeze.row}" topLeftCell="${colL(sh.freeze.col||0)}${sh.freeze.row+1}" activePane="${sh.freeze.col?'bottomRight':'bottomLeft'}" state="frozen"/>`:'';
- return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr>${sh.tab?`<tabColor rgb="FF${sh.tab}"/>`:''}<pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0"${sh.selected?' tabSelected="1"':''}${sh.nogrid?' showGridLines="0"':''}>${pane}</sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/>${sh.cols?`<cols>${sh.cols.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols>`:''}<sheetData>${rows}</sheetData>${sh.filter?`<autoFilter ref="${sh.filter}"/>`:''}${sh.merges&&sh.merges.length?`<mergeCells count="${sh.merges.length}">${sh.merges.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells>`:''}<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="${sh.portrait?'portrait':'landscape'}" fitToWidth="1" fitToHeight="0"/>${sh.charts&&sh.charts.length?'<drawing r:id="rId1"/>':''}</worksheet>`}
+ return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr>${sh.tab?`<tabColor rgb="FF${sh.tab}"/>`:''}<pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0"${sh.selected?' tabSelected="1"':''}${sh.nogrid?' showGridLines="0"':''}>${pane}</sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/>${sh.cols?`<cols>${sh.cols.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols>`:''}<sheetData>${rows}</sheetData>${sh.filter?`<autoFilter ref="${sh.filter}"/>`:''}${sh.merges&&sh.merges.length?`<mergeCells count="${sh.merges.length}">${sh.merges.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells>`:''}${sh.links&&sh.links.length?`<hyperlinks>${sh.links.map(l=>`<hyperlink ref="${l.ref}" location="${xesc(l.loc)}" display="${xesc(l.disp||'')}"/>`).join('')}</hyperlinks>`:''}<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="${sh.portrait?'portrait':'landscape'}" fitToWidth="1" fitToHeight="0"/>${sh.charts&&sh.charts.length?'<drawing r:id="rId1"/>':''}</worksheet>`}
 function workbookZip(sheets){const extra=[];let extraCt='',nc=0,nd=0;const RELNS='http://schemas.openxmlformats.org/package/2006/relationships',RT='http://schemas.openxmlformats.org/officeDocument/2006/relationships/';
  sheets.forEach((sh,i)=>{if(!sh.charts||!sh.charts.length)return;nd++;extra.push(['xl/worksheets/_rels/sheet'+(i+1)+'.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="${RELNS}"><Relationship Id="rId1" Type="${RT}drawing" Target="../drawings/drawing${nd}.xml"/></Relationships>`]);
   extra.push(['xl/drawings/drawing'+nd+'.xml',drawingXml(sh.charts)]);extraCt+=`<Override PartName="/xl/drawings/drawing${nd}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>`;
@@ -1293,7 +1541,7 @@ function workbookZip(sheets){const extra=[];let extraCt='',nc=0,nd=0;const RELNS
  const root=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
  return zip([['[Content_Types].xml',ct],['_rels/.rels',root],['xl/workbook.xml',wb],['xl/_rels/workbook.xml.rels',rels],['xl/styles.xml',stylesXml()],...sheets.map((s,i)=>['xl/worksheets/sheet'+(i+1)+'.xml',sheetXml(s)]),...extra])}
 
-function buildWorkbook(){const T=today(),Y=+T.slice(0,4);const A=state.actions;const done=state.visits.filter(v=>v.status==='done');
+function buildWorkbookOld(){const T=today(),Y=+T.slice(0,4);const A=state.actions;const done=state.visits.filter(v=>v.status==='done');
  const closedDelays=A.filter(a=>a.status==='Clôturée'&&a.closed&&a.created).map(a=>daysBetween(a.created,a.closed));
  const avg=arr=>arr.length?Math.round(arr.reduce((s,x)=>s+x,0)/arr.length):'—';
  const visitsYear=sid=>done.filter(v=>v.site===sid&&+v.date.slice(0,4)===Y).length+state.visitHistory.filter(h=>h.site===sid&&+h.month.slice(0,4)===Y).reduce((s,h)=>s+h.count,0);
