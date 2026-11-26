@@ -225,15 +225,16 @@ async function kvDel(k){mem.delete(k);try{const db=await idb();await new Promise
 function defaultState(){return{
   v:1,settings:{author:'',role:'Référent prévention & Sécurité',company:'Derichebourg Belgium',logo:null,alertDays:45,nextNum:1,ctlStart:today().slice(0,7)},
   sites:SITE_NAMES.map(n=>({id:n,name:n,resp:'',diffusion:'',modules:[]})),
-  responsables:[],visits:[],actions:[],visitHistory:[],draftId:null,firstAid:[],boxes:[],boxChecks:[],ctlDraftId:null,fireEquip:[],fireChecks:[],fireDraftId:null}}
+  responsables:[],visits:[],actions:[],visitHistory:[],draftId:null,firstAid:[],boxes:[],boxChecks:[],ctlDraftId:null,fireEquip:[],fireChecks:[],fireDraftId:null,beltEquip:[],beltChecks:[],beltDraftId:null,beltAU:{}}}
 let state=defaultState();
 let saveT=null;
 function save(){clearTimeout(saveT);saveT=setTimeout(()=>kvSet('state',JSON.parse(JSON.stringify(state))),250)}
 function normalize(s){const d=defaultState();const o=Object.assign(d,s||{});o.settings=Object.assign(defaultState().settings,o.settings||{});
   o.sites=(o.sites&&o.sites.length?o.sites:d.sites).map(x=>Object.assign({resp:'',diffusion:'',modules:[]},x));
-  ['responsables','visits','actions','visitHistory','firstAid','boxes','boxChecks','fireEquip','fireChecks'].forEach(k=>{if(!Array.isArray(o[k]))o[k]=[]});
+  ['responsables','visits','actions','visitHistory','firstAid','boxes','boxChecks','fireEquip','fireChecks','beltEquip','beltChecks'].forEach(k=>{if(!Array.isArray(o[k]))o[k]=[]});
   const PER=['Désinfectant','Compresses 5x5','Compresses 10x10','Pansements doigts','Pansement compressif',"Compresses d'urgences",'Gel','Eye & Wound Cleansing spray','Poche de froid','Gants en nitrile'];o.firstAid.forEach(it=>{if(it.exp===undefined)it.exp=PER.includes(it.name)});
   if(o.fireDraftId&&!o.fireChecks.find(c=>c.id===o.fireDraftId&&c.status==='draft'))o.fireDraftId=null;
+  if(!o.beltAU||typeof o.beltAU!=='object')o.beltAU={};if(o.beltDraftId&&!o.beltChecks.find(c=>c.id===o.beltDraftId&&c.status==='draft'))o.beltDraftId=null;
   if(o.ctlDraftId&&!o.boxChecks.find(c=>c.id===o.ctlDraftId&&c.status==='draft'))o.ctlDraftId=null;
   const mx=o.actions.reduce((m,a)=>Math.max(m,a.num||0),0);o.settings.nextNum=Math.max(o.settings.nextNum||1,mx+1);
   if(o.draftId&&!o.visits.find(v=>v.id===o.draftId&&v.status==='draft'))o.draftId=null;return o}
@@ -256,19 +257,19 @@ function siteCounts(siteId){const a=state.actions.filter(x=>x.site===siteId);ret
 let view='hub', viewArg=null, openSec=null;
 function go(v,arg){view=v;viewArg=arg;render();window.scrollTo(0,0)}
 function setHeader(t,sub){$('#title').textContent=t;$('#subtitle').textContent=sub||''}
-function render(){document.querySelectorAll('nav.bottom button').forEach(b=>b.setAttribute('aria-current',b.dataset.nav===({setup:'home',visit:'home',finish:'home',done:'home',controls:'hub',boxes:'hub',bxcheck:'hub',bxdone:'hub',fire:'hub',fxcheck:'hub',fxdone:'hub'}[view]||view)?'page':'false'));
-  ({hub:vHub,controls:vControls,boxes:vBoxes,bxcheck:vBoxCheck,bxdone:vBoxDone,fire:vFire,fxcheck:vFireCheck,fxdone:vFireDone,home:vHome,setup:vSetup,visit:vVisit,finish:vFinish,done:vDone,actions:vActions,export:vExport,settings:vSettings})[view]()}
+function render(){document.querySelectorAll('nav.bottom button').forEach(b=>b.setAttribute('aria-current',b.dataset.nav===({setup:'home',visit:'home',finish:'home',done:'home',controls:'hub',boxes:'hub',bxcheck:'hub',bxdone:'hub',fire:'hub',fxcheck:'hub',fxdone:'hub',belts:'hub',tpcheck:'hub',tpdone:'hub'}[view]||view)?'page':'false'));
+  ({hub:vHub,controls:vControls,boxes:vBoxes,bxcheck:vBoxCheck,bxdone:vBoxDone,fire:vFire,fxcheck:vFireCheck,fxdone:vFireDone,belts:vBelts,tpcheck:vBeltCheck,tpdone:vBeltDone,home:vHome,setup:vSetup,visit:vVisit,finish:vFinish,done:vDone,actions:vActions,export:vExport,settings:vSettings})[view]()}
 
 function vHub(){setHeader('Prévention & sécurité',fmt(today()));
   const acts=state.actions;const late=acts.filter(a=>situation(a)==='En retard').length,open=acts.filter(a=>situation(a)==='Ouverte').length+late;
   const draft=state.draftId&&state.visits.find(v=>v.id===state.draftId);
-  const ctl=[['Moyens d\'extinction','Extincteurs, RIA, bornes'],['Boîtes de secours','Contenu, péremptions'],['Échelles','État, stabilité, identification'],['Compresseurs','État, sécurités, contrôles']];
+  const ctl=[['Moyens d\'extinction','Extincteurs, RIA, bornes'],['Boîtes de secours','Contenu, péremptions'],['Bandes transporteuses','Arrêts d’urgence, carters'],['Échelles','État, stabilité, identification'],['Compresseurs','État, sécurités, contrôles']];
   $('#app').innerHTML=`<div class="stack">
    ${!acts.length&&!state.visits.length?`<div class="card stack"><b>Première utilisation</b><span class="hint">Importe le fichier de reprise ou ta dernière sauvegarde Excel.</span><button class="btn primary" data-act="import">Importer des données</button></div>`:''}
    <button class="hub" data-nav="home"><span class="hub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M8.5 12l2 2 4-4"/></svg></span><span class="grow"><span class="hub-t">Rapports de visite</span><span class="hub-s">Visites sécurité des ${state.sites.length} sites</span>
      <span class="row" style="gap:6px;margin-top:6px">${draft?`<span class="pill warn">Visite en cours : ${esc(site(draft.site).name)}</span>`:''}<span class="pill open">${open} actions ouvertes</span>${late?`<span class="pill late">${late} en retard</span>`:''}</span></span></button>
    <button class="hub" data-nav="controls"><span class="hub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-4.5"/></svg></span><span class="grow"><span class="hub-t">Contrôles internes</span><span class="hub-s">${ctl.map(c=>c[0]).join(' · ')}</span>
-     <span class="row" style="gap:6px;margin-top:6px">${(()=>{const bs=boxSites(),m=ym(today()),d=bs.filter(x=>['ok','inc'].includes(bxSiteStatus(x.id,m).state)).length;return bs.length?`<span class="pill ${d===bs.length?'closed':'open'}">Boîtes de secours : ${d}/${bs.length} ce mois</span>`:'<span class="pill na">En préparation</span>'})()}</span></span></button></div>`}
+     <span class="row" style="gap:6px;margin-top:6px">${(()=>{const bs=boxSites(),m=ym(today()),d=bs.filter(x=>['ok','inc'].includes(bxSiteStatus(x.id,m).state)).length;return bs.length?`<span class="pill ${d===bs.length?'closed':'open'}">Boîtes de secours : ${d}/${bs.length} ce mois</span>`:'<span class="pill na">En préparation</span>'})()}${tpAUAlerts()?`<span class="pill late">Test arrêts d’urgence à faire</span>`:''}</span></span></button></div>`}
 function vHome(){setHeader('Visites sécurité',fmt(today()));
   const acts=state.actions;const open=acts.filter(a=>situation(a)==='Ouverte').length,late=acts.filter(a=>situation(a)==='En retard').length;
   const draft=state.draftId&&state.visits.find(v=>v.id===state.draftId);
@@ -439,6 +440,24 @@ document.addEventListener('click',async e=>{const nav=e.target.closest('[data-na
    case 'dropdraft':if(await confirmBox('Supprimer la visite en cours ? Les réponses et photos seront effacées.','Supprimer la visite')){await dropVisit(state.draftId);toast('Visite supprimée');go('home')}break;
    case 'logo':$('#logoInput').value='';$('#logoInput').click();break;
    case 'dellogo':state.settings.logo=null;save();vSettings();break;
+   case 'tpstart':{const sid=b.dataset.site;if(state.beltDraftId){const d=tpCur();if(d.site===sid)return go('tpcheck');if(!await confirmBox(`Un contrôle est en cours (${site(d.site).name}). Le reprendre ?`,'Reprendre',false))return;return go('tpcheck')}
+     if(tpLastInMonth(sid,ym(today()))&&!await confirmBox(`${site(sid).name} a déjà été contrôlé ce mois-ci. Faire un nouveau contrôle ?`,'Nouveau contrôle',false))return;
+     const c={id:uid(),site:sid,date:today(),status:'draft',res:{}};state.beltChecks.push(c);state.beltDraftId=c.id;save();go('tpcheck');break}
+   case 'tpresume':go('tpcheck');break;
+   case 'tpdrop':{if(await confirmBox('Supprimer ce contrôle en cours ?','Supprimer')){const c=tpCur();for(const r of Object.values(c.res))for(const p of r.ph||[])await kvDel('photo:'+p);state.beltChecks=state.beltChecks.filter(x=>x.id!==c.id);state.beltDraftId=null;save();toast('Contrôle supprimé');go('belts')}break}
+   case 'tpc':{const r=tpRes(b.dataset.eq);r.c=r.c||{};const k=b.dataset.k;r.c[k]=r.c[k]===b.dataset.v?null:b.dataset.v;save();tpRefresh(b.dataset.eq);break}
+   case 'tpallok':{const e=state.beltEquip.find(x=>x.id===b.dataset.eq);const r=tpRes(e.id);r.c=r.c||{};for(const [k] of tpCrits(e))r.c[k]='ok';save();tpRefresh(e.id);break}
+   case 'tpnote':{const r=tpRes(b.dataset.eq);r.note=r.note||' ';save();tpRefresh(b.dataset.eq);break}
+   case 'tpdelph':{const r=tpRes(b.dataset.eq);r.ph=(r.ph||[]).filter(x=>x!==b.dataset.ph);await kvDel('photo:'+b.dataset.ph);save();tpRefresh(b.dataset.eq);break}
+   case 'tpacton':{const r=tpRes(b.dataset.eq);r.act=r.act||{};r.act.on=b.checked;if(r.act.on&&!r.act.text)r.act.text=(r.note||'').trim();save();tpRefresh(b.dataset.eq);break}
+   case 'tpg':case 'tpp':{const r=tpRes(b.dataset.eq);r.act[act==='tpg'?'g':'p']=+b.dataset.n;save();tpRefresh(b.dataset.eq);break}
+   case 'tpresp':{const r=tpRes(b.dataset.eq);r.act.resp=b.dataset.r;save();b.parentElement.querySelectorAll('.chip').forEach(x=>x.setAttribute('aria-pressed',x===b));break}
+   case 'tpzoom':tpZoom();break;
+   case 'tpfinish':tpFinish();break;
+   case 'tpsend':tpShare(b.dataset.id,false);break;
+   case 'tpsendboth':tpShare(b.dataset.id,true);break;
+   case 'tppdf':{const c=state.beltChecks.find(x=>x.id===b.dataset.id);try{const fl=await tpFile(c);download(fl.name,fl)}catch(e){toast("Le rapport n'a pas pu être créé.")}break}
+   case 'tpdel':{if(await confirmBox('Supprimer ce contrôle des bandes transporteuses ? Les actions créées restent dans le plan.','Supprimer')){const c=state.beltChecks.find(x=>x.id===b.dataset.id);for(const r of Object.values(c.res))for(const p of r.ph||[])await kvDel('photo:'+p);state.beltChecks=state.beltChecks.filter(x=>x.id!==c.id);save();toast('Contrôle supprimé');vBelts()}break}
    case 'fxstart':{const sid=b.dataset.site;if(state.fireDraftId){const d=fxCur();if(d.site===sid)return go('fxcheck');if(!await confirmBox(`Un contrôle est en cours (${site(d.site).name}). Le reprendre ?`,'Reprendre',false))return;return go('fxcheck')}
      if(fxLastInMonth(sid,ym(today()))&&!await confirmBox(`${site(sid).name} a déjà été contrôlé ce mois-ci. Faire un nouveau contrôle ?`,'Nouveau contrôle',false))return;
      const c={id:uid(),site:sid,date:today(),status:'draft',res:{}};state.fireChecks.push(c);state.fireDraftId=c.id;save();go('fxcheck');break}
@@ -509,6 +528,11 @@ document.addEventListener('click',async e=>{const nav=e.target.closest('[data-na
   }});
 document.addEventListener('toggle',e=>{const d=e.target;if(d.matches&&d.matches('details.sec')&&d.open)openSec=d.dataset.sec},true);
 document.addEventListener('input',e=>{const t=e.target;const v=cur();
+  if(t.dataset.tpn){tpRes(t.dataset.tpn).note=t.value;save();return}
+  if(t.dataset.tpa){const r=tpRes(t.dataset.tpa);r.act=r.act||{};r.act.text=t.value;save();return}
+  if(t.dataset.tpgen){tpCur().gen=t.value;save();return}
+  if(t.dataset.tpdate){if(t.value){tpCur().date=t.value;save()}return}
+  if(t.dataset.tpau){if(t.value)state.beltAU[t.dataset.tpau]=t.value;else delete state.beltAU[t.dataset.tpau];save();toast('Date du test enregistrée');return}
   if(t.dataset.fxn){fxRes(t.dataset.fxn).note=t.value;save();return}
   if(t.dataset.fxa){const r=fxRes(t.dataset.fxa);r.act=r.act||{};r.act.text=t.value;save();return}
   if(t.dataset.fxorg){fxRes(t.dataset.fxorg).org=t.value||null;save();return}
@@ -527,7 +551,8 @@ document.addEventListener('change',e=>{const t=e.target;
   else if(t.dataset.sitefield){site(t.dataset.site)[t.dataset.sitefield]=t.value;save()}
   else if(t.dataset.act==='fsite'){filt.site=t.value;vActions()}});
 document.addEventListener('change',e=>{const t=e.target;if(t.matches&&t.matches('input[data-photo-for]')){photoKey=t.dataset.photoFor;addPhoto(t.files[0])}});
-async function addPhoto(f){if(photoKey&&photoKey.startsWith('fx:')){if(!f||!fxCur())return;try{const data=await compress(f,1280,0.72);const id=uid();await kvSet('photo:'+id,data);const r=fxRes(photoKey.slice(3));r.ph=r.ph||[];r.ph.push(id);if(!r.note)r.note=' ';save();fxRefresh(photoKey.slice(3))}catch(e){toast("La photo n'a pas pu être lue.")}return}
+async function addPhoto(f){if(photoKey&&photoKey.startsWith('tp:')){if(!f||!tpCur())return;try{const data=await compress(f,1280,0.72);const id=uid();await kvSet('photo:'+id,data);const r=tpRes(photoKey.slice(3));r.ph=r.ph||[];r.ph.push(id);if(!r.note)r.note=' ';save();tpRefresh(photoKey.slice(3))}catch(e){toast("La photo n'a pas pu être lue.")}return}
+  if(photoKey&&photoKey.startsWith('fx:')){if(!f||!fxCur())return;try{const data=await compress(f,1280,0.72);const id=uid();await kvSet('photo:'+id,data);const r=fxRes(photoKey.slice(3));r.ph=r.ph||[];r.ph.push(id);if(!r.note)r.note=' ';save();fxRefresh(photoKey.slice(3))}catch(e){toast("La photo n'a pas pu être lue.")}return}
   if(photoKey&&photoKey.startsWith('box:')){if(!f||!bxCur())return;try{const data=await compress(f,1280,0.72);const id=uid();await kvSet('photo:'+id,data);const r=bxRes(photoKey.slice(4));r.ph=r.ph||[];r.ph.push(id);save();bxRefresh(photoKey.slice(4))}catch(e){toast("La photo n'a pas pu être lue.")}return}
   const v=cur();if(!f||!v||!photoKey)return;if(f.type&&!/^image\//.test(f.type)&&!/\.(jpe?g|png|webp|heic|heif)$/i.test(f.name)){toast('Choisis une photo (JPG ou PNG).');return}
   try{const data=await compress(f,1280,0.72);const id=uid();await kvSet('photo:'+id,data);const a=v.answers[photoKey]||(v.answers[photoKey]={v:'NOK'});a.ph=a.ph||[];a.ph.push(id);save();refreshItem(photoKey)}catch(err){toast("La photo n'a pas pu être lue. Réessaie.")}}
@@ -565,12 +590,15 @@ function bxPill(st){return st.state==='ok'?`<span class="pill closed">Fait le ${
 
 function vControls(){setHeader('Contrôles internes');const m=ym(today());const bs=boxSites();const done=bs.filter(s=>['ok','inc'].includes(bxSiteStatus(s.id,m).state)).length;
   const fs=fxSites(),fd=fs.filter(x=>['ok','inc'].includes(fxSiteStatus(x.id,m).state)).length;
-  const soon=[['Bandes transporteuses','Charleroi, Bruxelles, Liège'],['Échelles','Recensement en cours'],['Compresseurs','Fréquence à vérifier'],['Thermographie','Suivi des contrôles externes']];
+  const ts=tpSites(),td=ts.filter(x=>['ok','inc'].includes(tpSiteStatus(x.id,m).state)).length,tau=tpAUAlerts();
+  const soon=[['Échelles','Recensement en cours'],['Compresseurs','Fréquence à vérifier'],['Thermographie','Suivi des contrôles externes']];
   $('#app').innerHTML=`<div class="stack"><div class="hint">Contrôles mensuels · ${monthLabel(m)}</div>
    <button class="hub" data-nav="boxes"><span class="hub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5h6v2M12 10v7M8.5 13.5h7"/></svg></span><span class="grow"><span class="hub-t">Boîtes de secours</span><span class="hub-s">${state.boxes.length} boîtes sur ${bs.length} sites</span>
     <span class="row" style="gap:6px;margin-top:6px"><span class="pill ${done===bs.length&&bs.length?'closed':'open'}">${done}/${bs.length} sites contrôlés ce mois</span>${state.ctlDraftId?'<span class="pill warn">Contrôle en cours</span>':''}</span></span></button>
    <button class="hub" data-nav="fire"><span class="hub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 7h6v13a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1z"/><path d="M10 7V4h4M14 4l4-1M12 10v4"/></svg></span><span class="grow"><span class="hub-t">Moyens d'extinction</span><span class="hub-s">${state.fireEquip.length?state.fireEquip.length+' points sur '+fs.length+' site(s)':'Inventaire à importer'}</span>
     <span class="row" style="gap:6px;margin-top:6px">${fs.length?`<span class="pill ${fd===fs.length?'closed':'open'}">${fd}/${fs.length} site(s) contrôlé(s) ce mois</span>`:''}${state.fireDraftId?'<span class="pill warn">Contrôle en cours</span>':''}</span></span></button>
+   <button class="hub" data-nav="belts"><span class="hub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="5" cy="14" r="3"/><circle cx="19" cy="14" r="3"/><path d="M5 11h14M5 17h14M8 7l2-2 2 2"/></svg></span><span class="grow"><span class="hub-t">Bandes transporteuses</span><span class="hub-s">${state.beltEquip.length?state.beltEquip.length+' équipements sur '+ts.length+' site(s)':'Équipements à importer'}</span>
+    <span class="row" style="gap:6px;margin-top:6px">${ts.length?`<span class="pill ${td===ts.length?'closed':'open'}">${td}/${ts.length} site(s) contrôlé(s) ce mois</span>`:''}${tau?`<span class="pill late">Test arrêts d’urgence : ${tau} site(s)</span>`:''}${state.beltDraftId?'<span class="pill warn">Contrôle en cours</span>':''}</span></span></button>
    ${soon.map(([t,s])=>`<div class="site" style="cursor:default"><div class="grow"><div class="nm">${t}</div><div class="meta">${s}</div></div><span class="pill na">Bientôt</span></div>`).join('')}
    <button class="btn" data-nav="hub">Retour à l'accueil</button></div>`}
 
@@ -858,6 +886,158 @@ function fxKpiRows(){const curM=ym(today());const fs=fxSites();const done=fs.fil
   const lastNok=fs.reduce((n,s)=>{const last=state.fireChecks.filter(c=>c.status==='done'&&c.site===s.id).sort((a,b)=>a.date<b.date?1:-1)[0];return n+(last?fxNok(last):0)},0);
   return [['Sites contrôlés ce mois ('+monthLabel(curM)+')',done+' / '+fs.length],['Points non conformes au dernier contrôle',lastNok],['Vérifications organisme échues',org],['Vérifications organisme à prévoir d\'ici le mois prochain',soon],['Points enregistrés',state.fireEquip.length]]}
 
+
+/* ===================== CONTRÔLES INTERNES · BANDES TRANSPORTEUSES ===================== */
+const TP_CRIT=[['au','Arrêt d’urgence'],['car','Carter'],['pr','Absence point rentrant'],['etat','État général']];
+function tpEquip(siteId){return state.beltEquip.filter(e=>e.site===siteId).sort((a,b)=>(a.order??0)-(b.order??0))}
+function tpSites(){return state.sites.filter(s=>tpEquip(s.id).length)}
+function tpCur(){return state.beltChecks.find(c=>c.id===state.beltDraftId)}
+function tpLastInMonth(siteId,m){return state.beltChecks.filter(c=>c.status==='done'&&c.site===siteId&&ym(c.date)===m).sort((a,b)=>a.date<b.date?1:-1)[0]}
+function tpNok(c){return Object.values(c.res||{}).filter(r=>r.st==='nok').length}
+function tpSiteStatus(siteId,m){const c=tpLastInMonth(siteId,m);if(c)return{state:tpNok(c)?'inc':'ok',check:c};if(m<state.settings.ctlStart)return{state:'none'};return{state:m<ym(today())?'late':'todo'}}
+function tpPill(st){return st.state==='ok'?`<span class="pill closed">Fait le ${fmt(st.check.date).slice(0,5)}</span>`:st.state==='inc'?`<span class="pill warn">${tpNok(st.check)} équipement(s) NOK</span>`:st.state==='late'?'<span class="pill late">En retard</span>':st.state==='todo'?'<span class="pill open">À faire</span>':'<span class="pill na">—</span>'}
+function tpCrits(e){return TP_CRIT.filter(([k])=>!(k==='au'&&!e.au))}
+function tpDone(e,r){const c=(r&&r.c)||{};const crit=tpCrits(e);if(!crit.every(([k])=>c[k]))return false;if(crit.some(([k])=>c[k]==='nok'))return !!(r.note||'').trim();return true}
+async function tpPlan(siteId){try{return await kvGet('plan:belt:'+siteId)}catch(e){return null}}
+/* test des arrêts d'urgence : 2 fois par an */
+function tpHasAU(siteId){return tpEquip(siteId).some(e=>e.au)}
+function tpAUSites(){return tpSites().filter(s=>tpHasAU(s.id))}
+function tpAUDue(siteId){const d=(state.beltAU||{})[siteId];return d?addMonths(d,6):null}
+function tpAUState(siteId){const d=tpAUDue(siteId);if(!d)return'none';if(d<today())return'past';if(d<=addMonths(today(),1))return'soon';return'ok'}
+function tpAUPill(siteId){const s=tpAUState(siteId),d=tpAUDue(siteId),last=(state.beltAU||{})[siteId];
+  if(s==='none')return'<span class="pill warn">Test arrêts d’urgence : date à encoder</span>';
+  return s==='past'?`<span class="pill late">Test arrêts d’urgence échu (${fmt(d)})</span>`:s==='soon'?`<span class="pill warn">Test arrêts d’urgence avant le ${fmt(d)}</span>`:`<span class="pill na">Test arrêts d’urgence : ${fmt(last)}</span>`}
+function tpAUAlerts(){return tpAUSites().filter(s=>tpAUState(s.id)!=='ok').length}
+function tpAUField(siteId){return `<div class="card stack" style="gap:6px"><div class="row"><b class="grow">Test des arrêts d’urgence</b>${tpAUPill(siteId)}</div><span class="hint">À réaliser 2 fois par an. Encode la date du dernier test : l’appli calcule le suivant (+6 mois) et te le rappelle.</span><div class="row"><label class="hint grow" for="tpau-${esc(siteId)}">Dernier test</label><input type="date" id="tpau-${esc(siteId)}" data-tpau="${esc(siteId)}" value="${(state.beltAU||{})[siteId]||''}" style="width:auto;min-height:40px"></div></div>`}
+
+function vBelts(){setHeader('Bandes transporteuses',monthLabel(ym(today())));const m=ym(today());const draft=tpCur();let h='';
+  if(!state.beltEquip.length)h+=`<div class="card stack"><b>Équipements non chargés</b><span class="hint">Importe le fichier de reprise des bandes transporteuses (Réglages > Importer).</span><button class="btn primary" data-act="import">Importer</button></div>`;
+  if(draft)h+=`<div class="card stack" style="border-color:var(--accent)"><span class="lbl">Contrôle en cours</span><b>${esc(site(draft.site).name)} · ${fmt(draft.date)}</b><div class="row"><button class="btn primary big grow" data-act="tpresume">Reprendre</button><button class="btn danger big" data-act="tpdrop">Supprimer</button></div></div>`;
+  h+=`<h2>Choisis un site</h2><div class="stack">`;
+  for(const s of tpSites()){const eq=tpEquip(s.id);const st=tpSiteStatus(s.id,m);
+    h+=`<button class="site" data-act="tpstart" data-site="${esc(s.id)}"><div class="grow"><div class="nm">${esc(s.name)}</div><div class="meta">${eq.length} équipement(s)</div></div><div class="stack" style="gap:4px;align-items:flex-end">${tpPill(st)}${tpHasAU(s.id)&&tpAUState(s.id)!=='ok'?tpAUPill(s.id):''}</div></button>`}
+  h+=`</div>`;
+  const au=tpAUSites();if(au.length)h+=`<h2>Tests des arrêts d’urgence</h2><div class="stack">${au.map(s=>`<div><span class="lbl">${esc(s.name)}</span>${tpAUField(s.id)}</div>`).join('')}</div>`;
+  const hist=state.beltChecks.filter(c=>c.status==='done').sort((a,b)=>a.date<b.date?1:-1).slice(0,12);
+  if(hist.length)h+=`<h2>Derniers contrôles</h2><div class="stack">${hist.map(c=>`<div class="act"><div class="m"><b>${esc(site(c.site).name)}</b><span>${fmt(c.date)}</span>${tpNok(c)?`<span class="pill warn">${tpNok(c)} NOK</span>`:'<span class="pill closed">Tout conforme</span>'}</div><div class="row"><button class="btn small" data-act="tpsend" data-id="${c.id}">Envoyer le PDF</button><button class="btn small" data-act="tppdf" data-id="${c.id}">Télécharger</button><button class="btn small danger" data-act="tpdel" data-id="${c.id}">Supprimer</button></div></div>`).join('')}</div>`;
+  h+=`<div class="hint" id="dl-msg"></div>`;$('#app').innerHTML=h}
+
+function tpRowHTML(c,e){const r=c.res[e.id]||{};const cc=r.c||{};const done=tpDone(e,r);const bad=tpCrits(e).some(([k])=>cc[k]==='nok');
+  const btn=(k,v,l)=>`<button class="btn small" data-act="tpc" data-eq="${e.id}" data-k="${k}" data-v="${v}" style="min-height:40px;padding:0 12px;${cc[k]===v?(v==='ok'?'background:var(--ok);border-color:var(--ok);color:#fff':'background:var(--nok);border-color:var(--nok);color:#fff'):''}">${l}</button>`;
+  let h=`<div class="sec" id="tp-${e.id}" style="padding:12px;display:flex;flex-direction:column;gap:8px;${bad?'border-color:var(--nok)':done?'border-color:var(--ok)':''}">
+   <div class="row" style="gap:10px;align-items:center;flex-wrap:nowrap"><div class="grow"><b style="font-size:17px">${esc(e.name)}</b>${e.grp?` <span class="pill na" style="margin-left:4px">${esc(e.grp)}</span>`:''}</div>
+    ${done&&!bad?'<span class="pill closed">Conforme</span>':bad?'<span class="pill late">NOK</span>':`<button class="btn small" data-act="tpallok" data-eq="${e.id}" style="min-height:40px">Tout OK</button>`}</div>`;
+  for(const [k,l] of tpCrits(e))h+=`<div class="row" style="gap:8px;flex-wrap:nowrap"><span class="grow" style="font-size:15px">${l}${k==='au'?`<span class="hint" style="display:block">${esc(e.au)}</span>`:''}</span>${btn(k,'ok','OK')}${btn(k,'nok','NOK')}</div>`;
+  if(bad||r.note||(r.ph||[]).length){h+=`<div class="field"><label for="tn-${e.id}">${bad?'Constat (obligatoire)':'Remarque'}</label><textarea id="tn-${e.id}" data-tpn="${e.id}" placeholder="ex. grille manquante au niveau de la tête">${esc(r.note||'')}</textarea></div>
+    <div class="thumbs">${(r.ph||[]).map(id=>`<div class="thumb"><img data-photo="${id}" alt="Photo"><button data-act="tpdelph" data-eq="${e.id}" data-ph="${id}" aria-label="Supprimer la photo">×</button></div>`).join('')}
+     <button type="button" class="btn" data-act="photo" data-src="cam" data-key="tp:${e.id}" style="width:84px;height:84px;font-size:13px">Appareil</button><button type="button" class="btn" data-act="photo" data-src="gal" data-key="tp:${e.id}" style="width:84px;height:84px;font-size:13px">Galerie</button></div>
+    <label class="toggle"><input type="checkbox" data-act="tpacton" data-eq="${e.id}" ${r.act&&r.act.on?'checked':''}> Créer une action</label>`;
+    if(r.act&&r.act.on){const a=r.act;const pr=prioOf(a.g,a.p);
+      h+=`<div class="field"><label for="ta-${e.id}">Action à mener</label><textarea id="ta-${e.id}" data-tpa="${e.id}">${esc(a.text||'')}</textarea></div>
+       <div class="field"><span class="lbl">Gravité</span><div class="scale">${[1,2,3,4].map(n=>`<button type="button" data-act="tpg" data-eq="${e.id}" data-n="${n}" aria-pressed="${a.g===n}"><b>${n}</b><small>${G_LABELS[n-1]}</small></button>`).join('')}</div></div>
+       <div class="field"><span class="lbl">Probabilité</span><div class="scale">${[1,2,3,4].map(n=>`<button type="button" data-act="tpp" data-eq="${e.id}" data-n="${n}" aria-pressed="${a.p===n}"><b>${n}</b><small>${P_LABELS[n-1]}</small></button>`).join('')}</div></div>
+       <div class="prio-out">${pr?`<span class="pill ${pr}">${PRIO_INFO[pr].label}</span><span>Échéance ${fmt(dueOf(c.date,pr))}</span>`:'<span class="hint">Choisis gravité et probabilité.</span>'}</div>
+       <div class="field"><span class="lbl">Responsable</span><div class="chips">${respChips(a.resp,rr=>`data-act="tpresp" data-eq="${e.id}" data-r="${esc(rr)}"`)}</div></div>`}}
+  else h+=`<button class="btn small" data-act="tpnote" data-eq="${e.id}" style="align-self:flex-start">+ Remarque / photo</button>`;
+  return h+`</div>`}
+async function vBeltCheck(){const c=tpCur();if(!c)return go('belts');const eq=tpEquip(c.site);setHeader('Bandes · '+site(c.site).name,fmt(c.date));
+  $('#app').innerHTML=`<div class="stack"><div id="tp-plan"></div>
+   <div class="field"><label for="tp-date">Date du contrôle</label><input type="date" id="tp-date" value="${c.date}" data-tpdate="1"></div>
+   <div class="field"><label for="tp-gen">Remarque générale (facultatif)</label><textarea id="tp-gen" data-tpgen="1" placeholder="ex. broyeur à l'arrêt, maintenance en cours">${esc(c.gen||'')}</textarea></div>
+   ${tpHasAU(c.site)?tpAUField(c.site):''}
+   <div class="hint" id="tp-count"></div>
+   ${eq.map(e=>tpRowHTML(c,e)).join('')}
+   <button class="btn primary big" data-act="tpfinish">Terminer le contrôle</button><button class="btn danger" data-act="tpdrop">Abandonner et supprimer ce contrôle</button></div>`;
+  loadThumbs();tpCount();const p=await tpPlan(c.site);const el=$('#tp-plan');if(el)el.innerHTML=p?`<button data-act="tpzoom" style="padding:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;width:100%"><img src="${p}" alt="Schéma ${esc(site(c.site).name)}" style="display:block;width:100%"></button><div class="hint" style="margin-top:4px">Touche le schéma pour l'agrandir.</div>`:'<div class="hint">Pas de schéma pour ce site.</div>'}
+function tpCount(){const c=tpCur();const el=$('#tp-count');if(!c||!el)return;const eq=tpEquip(c.site);el.textContent=`${eq.filter(e=>tpDone(e,c.res[e.id])).length}/${eq.length} équipement(s) contrôlé(s)`}
+function tpRefresh(id){const c=tpCur();const e=state.beltEquip.find(x=>x.id===id);const el=document.getElementById('tp-'+id);if(el&&e){const y=window.scrollY;el.outerHTML=tpRowHTML(c,e);window.scrollTo(0,y);loadThumbs()}tpCount()}
+function tpRes(id){const c=tpCur();return c.res[id]||(c.res[id]={c:{}})}
+async function tpZoom(){const c=tpCur();const p=await tpPlan(c.site);if(!p)return;let z=1;
+  const m=modal(`<div class="row"><b class="grow">Schéma · ${esc(site(c.site).name)}</b><button class="btn small" data-z="-1" aria-label="Réduire">−</button><button class="btn small" data-z="1" aria-label="Agrandir">+</button><button class="btn small" data-z="0">Fermer</button></div><div style="overflow:auto;max-height:75vh;border:1px solid var(--line);border-radius:8px;background:#fff"><img id="zimg" src="${p}" alt="Schéma" style="display:block;width:100%;max-width:none"></div>`);
+  m.querySelector('.box').style.maxHeight='96%';
+  m.addEventListener('click',ev=>{const b=ev.target.closest('[data-z]');if(!b)return;const d=+b.dataset.z;if(!d){m.remove();return}z=Math.min(4,Math.max(1,z+d*0.5));m.querySelector('#zimg').style.width=(z*100)+'%'})}
+async function tpFinish(){const c=tpCur();const eq=tpEquip(c.site);const todo=eq.filter(e=>!tpDone(e,c.res[e.id]));
+  if(todo.length){const e=todo[0];const r=c.res[e.id]||{};const cc=r.c||{};toast(`${e.name} : ${tpCrits(e).every(([k])=>cc[k])?'décris le constat':'éléments à renseigner'}.`);const el=document.getElementById('tp-'+e.id);if(el)el.scrollIntoView();return}
+  const bad=eq.filter(e=>{const a=(c.res[e.id]||{}).act;return a&&a.on&&(!a.text||!a.g||!a.p||!a.resp)});
+  if(bad.length){toast('Une action est incomplète (texte, gravité, probabilité ou responsable).');return}
+  c.snap={};c.auLast=(state.beltAU||{})[c.site]||null;
+  for(const e of eq){const r=c.res[e.id];r.st=tpCrits(e).some(([k])=>r.c[k]==='nok')?'nok':'ok';c.snap[e.id]={name:e.name,grp:e.grp||'',au:e.au||''};
+    if(r.act&&r.act.on){const a=r.act;const pr=prioOf(a.g,a.p);const ac={id:uid(),num:state.settings.nextNum++,site:c.site,created:c.date,text:a.text.trim(),resp:a.resp,g:a.g,p:a.p,prio:pr,due:dueOf(c.date,pr),closed:null,status:'Ouverte',theme:'equip',visitId:null,itemKey:'tp:'+e.id,origin:'Contrôle bandes transporteuses du '+fmt(c.date)};state.actions.push(ac);r.actionId=ac.id}}
+  c.status='done';state.beltDraftId=null;save();go('tpdone',c.id)}
+function vBeltDone(){const c=state.beltChecks.find(x=>x.id===viewArg);if(!c)return go('belts');const n=Object.keys(c.res).length,nok=tpNok(c);
+  setHeader('Contrôle terminé',site(c.site).name+' · '+fmt(c.date));
+  $('#app').innerHTML=`<div class="stack"><div class="card done-hero"><div class="lbl">Bandes transporteuses</div><div class="score" style="color:${nok?'var(--nok)':'var(--ok)'}">${n-nok}/${n}</div><div class="hint">équipement(s) conforme(s)</div></div>
+   <div class="card stack"><b>Envoie le rapport et l'Excel à ton adresse du boulot</b><button class="btn primary big" data-act="tpsendboth" data-id="${c.id}">Envoyer rapport + Excel</button>
+    <div class="row"><button class="btn small grow" data-act="tppdf" data-id="${c.id}">Télécharger le PDF</button><button class="btn small grow" data-act="savexlsx">Télécharger l'Excel</button></div><div class="hint" id="dl-msg"></div></div>
+   <button class="btn" data-nav="belts">Retour aux bandes transporteuses</button></div>`}
+function tpCritTxt(sn,cc){const k=tpCrits(sn).filter(([k])=>cc[k]==='nok').map(([,l])=>l);return k.length?k.join(', ')+' NOK':'Conforme'}
+
+async function buildBeltReport(c){const pdf=new PDF();const W=pdf.W,M=36,CW=W-2*M;const s=site(c.site);let y;
+  let logo=null;const logoSrc=state.settings.logo||(typeof DEFAULT_LOGO!=='undefined'?DEFAULT_LOGO:null);if(logoSrc){try{const im=await dataUrlToJpeg(logoSrc,900);logo={id:pdf.addJpeg(im.bytes,im.w,im.h),w:im.w,h:im.h}}catch(e){}}
+  const newPage=()=>{pdf.page();pdf.rect(0,0,W,6,C.navy);pdf.rect(0,6,W,2,C.brand);y=40;if(logo){const h=24,w=Math.min(90,logo.w*h/logo.h);pdf.image(logo.id,W-M-w,16,w,w*logo.h/logo.w)}pdf.text(s.name+' · '+fmt(c.date),M,y,{size:9,color:C.muted});y+=26};
+  const ensure=h=>{if(y+h>pdf.H-48)newPage()};
+  const heading=t=>{ensure(40);pdf.text(t.toUpperCase(),M,y,{size:10,bold:true,color:C.navy,spacing:0.8});pdf.line(M,y+6,M+CW,y+6,C.brand,1.2);y+=22};
+  pdf.page();pdf.rect(0,0,W,8,C.navy);
+  if(logo){const h=58,w=Math.min(170,logo.w*h/logo.h),hh=w*logo.h/logo.w;pdf.image(logo.id,M,26+(h-hh)/2,w,hh)}
+  const tx0=logo?W-M:M,al=logo?'right':'left';
+  pdf.text('CONTRÔLE DES BANDES TRANSPORTEUSES',tx0,40,{size:9,bold:true,color:C.brand,spacing:1.2,align:al});
+  pdf.text(s.name,tx0,70,{size:26,bold:true,color:C.navy,align:al});pdf.text(fmt(c.date)+'  ·  contrôle mensuel',tx0,88,{size:10,color:C.muted,align:al});
+  pdf.rect(M,100,CW,2.5,C.brand);y=124;
+  pdf.text('Contrôleur',M,y,{size:9,bold:true,color:C.muted});pdf.text([state.settings.author,state.settings.role].filter(Boolean).join(' – ')||'—',M+80,y,{size:10});y+=16;
+  const hasAU=Object.values(c.snap||{}).some(x=>x.au);
+  if(hasAU){const last=c.auLast;const due=last?addMonths(last,6):null;const past=due&&due<c.date;pdf.text('Arrêts d’urgence',M,y,{size:9,bold:true,color:C.muted});pdf.text(last?`dernier test le ${fmt(last)} · prochain avant le ${fmt(due)}${past?' (échu)':''}`:'date du dernier test non encodée',M+80,y,{size:10,bold:!last||past,color:!last||past?C.nok:C.ink});y+=16}
+  if(c.gen){const gl=pdf.wrap(c.gen,10,false,CW-80);pdf.text('Remarque',M,y,{size:9,bold:true,color:C.muted});gl.forEach((t,i)=>pdf.text(t,M+80,y+i*13,{size:10}));y+=gl.length*13+3}
+  y+=8;
+  const ord=id=>{const e=state.beltEquip.find(x=>x.id===id);return e?(e.order??0):999};const ids=Object.keys(c.res).sort((p,q)=>ord(p)-ord(q));const nok=tpNok(c);const acts=state.actions.filter(a=>Object.values(c.res).some(r=>r.actionId===a.id));
+  const cards=[[String(ids.length),'équipement(s) contrôlé(s)',C.navy],[String(ids.length-nok),'conforme(s)',C.ok],[String(nok),'non conforme(s)',nok?C.nok:C.ink],[String(acts.length),'action(s) créée(s)',acts.length?C.warn:C.ink]];
+  const cw=(CW-24)/4;cards.forEach(([n,l,col],i)=>{const x=M+i*(cw+8);pdf.rrect(x,y,cw,70,6,C.soft);pdf.text(n,x+cw/2,y+38,{size:26,bold:true,color:col,align:'center'});pdf.text(l,x+cw/2,y+56,{size:8.5,color:C.muted,align:'center'})});y+=92;
+  const plan=await tpPlan(c.site);if(plan){try{const im=await dataUrlToJpeg(plan,1600);const id=pdf.addJpeg(im.bytes,im.w,im.h);const k=Math.min(CW/im.w,330/im.h);heading('Schéma');pdf.image(id,M+(CW-im.w*k)/2,y,im.w*k,im.h*k);y+=im.h*k+16}catch(e){}}
+  heading('Résultat par équipement');
+  const X0=M+190,cwd=(CW-190)/4;const hdr=()=>{pdf.rect(M,y-11,CW,22,C.soft);pdf.text('Équipement',M+4,y+3,{size:8,bold:true,color:C.muted});[['Arrêt','d’urgence'],['Carter',''],['Absence point','rentrant'],['État','général']].forEach(([a,b],i)=>{const x=X0+i*cwd+cwd/2;pdf.text(a,x,y-1,{size:7.5,bold:true,color:C.muted,align:'center'});if(b)pdf.text(b,x,y+8,{size:7.5,bold:true,color:C.muted,align:'center'})});y+=22};
+  ensure(40);hdr();
+  for(const id of ids){const r=c.res[id];const sn=c.snap[id];if(y+15>pdf.H-48){newPage();hdr()}
+    if(r.st==='nok')pdf.rect(M,y-10,CW,15,'#FBEAEA');
+    pdf.text(sn.name,M+4,y,{size:9,bold:r.st==='nok'});if(sn.grp)pdf.text(sn.grp,X0-6,y,{size:7.5,color:C.muted,align:'right'});
+    TP_CRIT.forEach(([k],i)=>{const v=(k==='au'&&!sn.au)?'–':(r.c[k]==='nok'?'NOK':'OK');pdf.text(v,X0+i*cwd+cwd/2,y,{size:8.5,bold:v!=='–',color:v==='NOK'?C.nok:v==='OK'?C.ok:C.muted,align:'center'})});
+    y+=15;pdf.line(M,y-10,M+CW,y-10,C.line,0.3)}
+  const noks=ids.filter(id=>c.res[id].st==='nok');
+  if(noks.length){y+=10;heading('Non-conformités');for(const id of noks){const r=c.res[id];const sn=c.snap[id];const ls=pdf.wrap(r.note||'',9.5,false,CW-150);ensure(ls.length*12+22);
+    pdf.text(sn.name,M,y,{size:10,bold:true});pdf.text(tpCritTxt(sn,r.c),M,y+12,{size:8.5,bold:true,color:C.nok});ls.forEach((t,i)=>pdf.text(t,M+150,y+i*12,{size:9.5}));
+    const ac=state.actions.find(a=>a.id===r.actionId);const hh=Math.max(ls.length*12,24);if(ac){pdf.text(`Action N° ${ac.num} · ${ac.prio} · ${ac.resp||'—'} · échéance ${fmt(ac.due)}`,M+150,y+hh,{size:8.5,color:C.muted});y+=12}
+    y+=hh+10;pdf.line(M,y-8,M+CW,y-8,C.line,0.4)}}
+  if(acts.length){y+=8;heading('Actions');for(const a of acts){const ls=pdf.wrap(a.text,10,true,CW-60);ensure(ls.length*13+18);pdf.rrect(M,y-11,40,16,4,C[a.prio]||C.muted);pdf.text(a.prio,M+20,y,{size:9,bold:true,color:a.prio==='P3'?'#1A1A1A':'#FFFFFF',align:'center'});
+    ls.forEach((l,i)=>pdf.text(l,M+52,y+i*13,{size:10,bold:true,color:C.navy}));pdf.text('N° '+a.num+'  ·  Pilote : '+(a.resp||'—')+'  ·  Échéance : '+fmt(a.due),M+52,y+ls.length*13+2,{size:9});y+=ls.length*13+20}}
+  const photos=[];for(const [id,r] of Object.entries(c.res))for(const p of (r.ph||[]).slice(0,2)){const d=await kvGet('photo:'+p);if(d)try{photos.push([c.snap[id],await dataUrlToJpeg(d,700)])}catch(e){}}
+  if(photos.length){y+=8;heading('Photos');let x=M;const pw=160,ph=120;ensure(ph+24);for(const [sn,im] of photos){if(x+pw>M+CW){x=M;y+=ph+24;ensure(ph+24)}const id=pdf.addJpeg(im.bytes,im.w,im.h);const k=Math.min(pw/im.w,ph/im.h);pdf.image(id,x,y,im.w*k,im.h*k);pdf.text(sn.name,x,y+im.h*k+11,{size:8,color:C.muted});x+=pw+10}y+=ph+24}
+  const n=pdf.pages.length;pdf.pages.forEach((cc,i)=>{pdf.c=cc;pdf.line(M,pdf.H-34,M+CW,pdf.H-34,C.line,0.5);pdf.text((state.settings.company?state.settings.company+' · ':'')+'Contrôle bandes transporteuses – '+s.name+' – '+fmt(c.date),M,pdf.H-22,{size:8,color:C.muted});pdf.text('Page '+(i+1)+' / '+n,W-M,pdf.H-22,{size:8,color:C.muted,align:'right'})});
+  return pdf.output()}
+async function tpFile(c){const b=await buildBeltReport(c);return new File([b],`Controle bandes transporteuses ${safeName(site(c.site).name)} ${c.date}.pdf`,{type:'application/pdf'})}
+async function tpShare(id,withXlsx){const m=$('#dl-msg');if(m)m.textContent='Préparation des fichiers…';
+  try{const c=state.beltChecks.find(x=>x.id===id);const files=[await tpFile(c)];if(withXlsx)files.push(new File([buildWorkbook()],`Suivi securite sites ${today()}.xlsx`,{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+    if(navigator.canShare&&navigator.canShare({files})){try{await navigator.share({files,title:`Contrôle bandes transporteuses ${site(c.site).name} ${fmt(c.date)}`});if(m)m.textContent='Fichiers transmis.';return}catch(e){if(e&&e.name==='AbortError'){if(m)m.textContent='Envoi annulé.';return}}}
+    files.forEach(f=>download(f.name,f));if(m)m.textContent='Fichiers téléchargés.'}catch(err){console.error(err);if(m)m.textContent="Les fichiers n'ont pas pu être créés."}}
+
+function tpSheets(){if(!state.beltEquip.length)return[];const Y=+today().slice(0,4),curM=ym(today());const head=v=>({v,s:X.head});const out=[];
+  const P=[[{v:`Bandes transporteuses – contrôles mensuels ${Y}`,s:X.title}],[{v:`Vert : tout conforme · Orange : équipement(s) NOK · Rouge : non contrôlé (mois écoulé) · Suivi depuis ${monthLabel(state.settings.ctlStart)}`,s:X.sub}],[],{ht:22,cells:[head('Site'),head('Équipements'),...MONTHS.map(head)]}];
+  for(const s of tpSites()){const row=[{v:s.name,s:X.bold},{v:tpEquip(s.id).length,s:X.num}];for(let mm=1;mm<=12;mm++){const m=Y+'-'+String(mm).padStart(2,'0');const c=tpLastInMonth(s.id,m);
+    if(c){const n=tpNok(c);row.push({v:(n?n+' NOK ':'✓ ')+fmt(c.date).slice(0,5),s:n?X.yellow:X.green})}else if(m<state.settings.ctlStart||m>curM)row.push({v:'',s:X.num});else row.push({v:m<curM?'Non fait':'À faire',s:m<curM?X.red:X.blue})}P.push(row)}
+  const au=tpAUSites();if(au.length){P.push([]);P.push([{v:'Tests des arrêts d’urgence (2 fois par an)',s:X.section}]);P.push({ht:22,cells:['Site','Dernier test','Prochain test avant','Situation'].map(head)});
+    for(const s of au){const st=tpAUState(s.id),last=(state.beltAU||{})[s.id],d=tpAUDue(s.id);P.push([{v:s.name,s:X.bold},last?{v:last,d:1,s:X.date}:{v:'À encoder',s:X.red},d?{v:d,d:1,s:X.date}:{v:'—',s:X.num},st==='past'?{v:'Échu',s:X.red}:st==='soon'?{v:'À prévoir',s:X.yellow}:st==='ok'?{v:'OK',s:X.green}:{v:'À encoder',s:X.red}])}}
+  out.push({name:'Bandes – planning',rows:P,cols:[14,13,...Array(12).fill(10)],freeze:{row:4,col:1},tab:'C41E24'});
+  const I=[{ht:30,cells:['Site','Équipement','Groupe','Arrêt d’urgence','Dernier contrôle','Résultat','Constat'].map(head)}];
+  for(const s of tpSites()){const last=state.beltChecks.filter(c=>c.status==='done'&&c.site===s.id).sort((a,b)=>a.date<b.date?1:-1)[0];
+    for(const e of tpEquip(s.id)){const r=last&&last.res[e.id];I.push([{v:s.name,s:X.txt},{v:e.name,s:X.bold},{v:e.grp||'',s:X.num},{v:e.au||'–',s:X.txt},last?{v:last.date,d:1,s:X.date}:{v:'—',s:X.num},r?{v:tpCritTxt(e,r.c),s:r.st==='ok'?X.green:X.red}:{v:'—',s:X.num},{v:r&&r.st==='nok'?r.note||'':'',s:X.txt}])}}
+  out.push({name:'Bandes – inventaire',rows:I,cols:[13,26,9,30,14,30,50],freeze:{row:1},filter:`A1:G${I.length}`,tab:'C41E24'});
+  const E=[{ht:30,cells:['Date','Site','Équipement','Constat','Remarque','Action N°'].map(head)}];
+  for(const c of state.beltChecks.filter(x=>x.status==='done').sort((a,b)=>a.date<b.date?1:-1))for(const [id,r] of Object.entries(c.res)){if(r.st!=='nok')continue;const sn=c.snap[id];const ac=state.actions.find(a=>a.id===r.actionId);
+    E.push([{v:c.date,d:1,s:X.date},{v:site(c.site).name,s:X.txt},{v:sn.name,s:X.bold},{v:tpCritTxt(sn,r.c),s:X.red},{v:r.note||'',s:X.txt},{v:ac?ac.num:'',s:X.num}])}
+  out.push({name:'Bandes – écarts',rows:E,cols:[12,13,26,30,60,10],freeze:{row:1},filter:`A1:F${E.length}`,tab:'C41E24'});
+  return out}
+function tpKpiRows(){const curM=ym(today());const ts=tpSites();const done=ts.filter(s=>['ok','inc'].includes(tpSiteStatus(s.id,curM).state)).length;
+  const lastNok=ts.reduce((n,s)=>{const last=state.beltChecks.filter(c=>c.status==='done'&&c.site===s.id).sort((a,b)=>a.date<b.date?1:-1)[0];return n+(last?tpNok(last):0)},0);
+  const au=tpAUSites();
+  return [['Sites contrôlés ce mois ('+monthLabel(curM)+')',done+' / '+ts.length],['Équipements non conformes au dernier contrôle',lastNok],['Tests des arrêts d’urgence échus ou à encoder',au.filter(s=>['past','none'].includes(tpAUState(s.id))).length+' / '+au.length],['Équipements enregistrés',state.beltEquip.length]]}
+
 /* ===================== GRAPHIQUES EXCEL ===================== */
 const CNS='xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
 function xRef(sh,c1,r1,c2,r2){return `'${String(sh).replace(/'/g,"''")}'!$${colL(c1)}$${r1+1}:$${colL(c2)}$${r2+1}`}
@@ -903,7 +1083,7 @@ async function doImport(file){try{let obj;const buf=await file.arrayBuffer();con
   if(u8[0]===0x50&&u8[1]===0x4B){try{obj=await readBackupFromXlsx(buf)}catch(e){toast("Cet Excel n'a pas été exporté par l'appli (il ne contient pas de sauvegarde).");return}}
   else obj=JSON.parse(new TextDecoder().decode(u8));
   if(!obj||obj.format!=='visites-securite'||!obj.data)throw new Error('format');
-  if(obj.merge){for(const [k,v] of Object.entries(obj.data)){if(k==='settings')Object.assign(state.settings,v);else if(k==='plans'){for(const [pk,pv] of Object.entries(v))await kvSet('plan:'+pk,pv)}else if(k==='fireEquip'){const sites=new Set(v.map(e=>e.site));state.fireEquip=state.fireEquip.filter(e=>!sites.has(e.site)).concat(v)}else state[k]=v}state=normalize(state);await kvSet('state',JSON.parse(JSON.stringify(state)));toast(obj.data.fireEquip?`Moyens d'extinction ajoutés : ${obj.data.fireEquip.length} points`:obj.data.boxes?`Boîtes de secours ajoutées : ${state.boxes.length} boîtes, ${state.firstAid.length} articles`:'Données ajoutées');go('hub');return}
+  if(obj.merge){for(const [k,v] of Object.entries(obj.data)){if(k==='settings')Object.assign(state.settings,v);else if(k==='plans'){for(const [pk,pv] of Object.entries(v))await kvSet('plan:'+pk,pv)}else if(k==='fireEquip'){const sites=new Set(v.map(e=>e.site));state.fireEquip=state.fireEquip.filter(e=>!sites.has(e.site)).concat(v)}else if(k==='beltEquip'){const sites=new Set(v.map(e=>e.site));state.beltEquip=state.beltEquip.filter(e=>!sites.has(e.site)).concat(v)}else state[k]=v}state=normalize(state);await kvSet('state',JSON.parse(JSON.stringify(state)));toast(obj.data.beltEquip?`Bandes transporteuses ajoutées : ${obj.data.beltEquip.length} équipements`:obj.data.fireEquip?`Moyens d'extinction ajoutés : ${obj.data.fireEquip.length} points`:obj.data.boxes?`Boîtes de secours ajoutées : ${state.boxes.length} boîtes, ${state.firstAid.length} articles`:'Données ajoutées');go('hub');return}
   const has=state.actions.length||state.visits.length;
   if(has&&!await confirmBox(`Remplacer toutes les données de l'appli par celles du fichier (${obj.data.actions?.length||0} actions) ?`,'Remplacer'))return;
   state=normalize(obj.data);await kvSet('state',JSON.parse(JSON.stringify(state)));try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(_){}
@@ -1125,7 +1305,7 @@ function buildWorkbook(){const T=today(),Y=+T.slice(0,4);const A=state.actions;c
  D[3]={ht:30,cells:[{v:'Actions ouvertes',s:X.kpil},{v:'dont en retard',s:X.kpil},{v:'Clôturées',s:X.kpil},{v:'Taux de clôture',s:X.kpil},{v:'Délai moyen de clôture (jours)',s:X.kpil},{v:`Visites ${Y}`,s:X.kpil},{v:'Dernier score moyen',s:X.kpil}]};
  const lastScores=state.sites.map(s=>lastScore(s.id)).filter(x=>x!=null);
  D[4]={ht:40,cells:[{v:open+late,s:X.kpi},{v:late,s:X.kpi},{v:closed,s:X.kpi},{v:A.length?closed/A.length:0,s:X.kpipct},{v:avg(closedDelays),s:X.kpi},{v:state.sites.reduce((s,x)=>s+visitsYear(x.id),0),s:X.kpi},{v:lastScores.length?avg(lastScores)/100:'—',s:typeof avg(lastScores)==='number'?X.kpipct:X.kpi}]};
- const CH0=6,CHH=20;D[CH0]=[{v:'En graphiques',s:X.section}];let r=CH0+1+3*CHH+1;const RG={};if(state.fireEquip.length){D[r++]=[{v:"Contrôles internes – Moyens d'extinction",s:X.section}];for(const [l,v] of fxKpiRows())D[r++]=[{v:l,s:X.bold},{v:v,s:X.num}];r++}if(state.boxes.length){D[r++]=[{v:'Contrôles internes – Boîtes de secours',s:X.section}];for(const [l,v] of bxKpiRows())D[r++]=[{v:l,s:X.bold},{v:v,s:X.num}];r++}D[r++]=[{v:'Par site',s:X.section}];
+ const CH0=6,CHH=20;D[CH0]=[{v:'En graphiques',s:X.section}];let r=CH0+1+3*CHH+1;const RG={};if(state.beltEquip.length){D[r++]=[{v:'Contrôles internes – Bandes transporteuses',s:X.section}];for(const [l,v] of tpKpiRows())D[r++]=[{v:l,s:X.bold},{v:v,s:X.num}];r++}if(state.fireEquip.length){D[r++]=[{v:"Contrôles internes – Moyens d'extinction",s:X.section}];for(const [l,v] of fxKpiRows())D[r++]=[{v:l,s:X.bold},{v:v,s:X.num}];r++}if(state.boxes.length){D[r++]=[{v:'Contrôles internes – Boîtes de secours',s:X.section}];for(const [l,v] of bxKpiRows())D[r++]=[{v:l,s:X.bold},{v:v,s:X.num}];r++}D[r++]=[{v:'Par site',s:X.section}];
  D[r++]={ht:30,cells:['Site',`Visites ${Y}`,'Dernière visite','Jours depuis','Dernier score','Ouvertes','En retard','Clôturées','Taux de clôture','Délai moyen (j)'].map(H)};
  RG.site0=r;for(const s of state.sites){const as=A.filter(a=>a.site===s.id);const lv=lastVisitDate(s.id);const d=lv?daysBetween(lv,T):null;const sc=lastScore(s.id);const cl=as.filter(a=>a.status==='Clôturée');const lt=as.filter(a=>situation(a)==='En retard').length;
   D[r++]=[{v:s.name,s:X.bold},{v:visitsYear(s.id),s:X.num},lv?{v:lv,d:1,s:X.date}:{v:'—',s:X.num},{v:d==null?'—':d,s:d!=null&&d>state.settings.alertDays?X.red:X.num},
@@ -1183,7 +1363,7 @@ function buildWorkbook(){const T=today(),Y=+T.slice(0,4);const A=state.actions;c
  /* Sauvegarde */
  const json=JSON.stringify({format:'visites-securite',version:1,exported:new Date().toISOString(),data:state});const SB=[[{v:"Sauvegarde de l'appli Visites sécurité – ne pas modifier"}]];for(let i=0;i<json.length;i+=30000)SB.push([{v:json.slice(i,i+30000)}]);
  const sb={name:'_sauvegarde',rows:SB,hidden:true};
- return workbookZip([dash,plan,...siteActionSheets(),vis,ec,...bxSheets(),...fxSheets(),sb])}
+ return workbookZip([dash,plan,...siteActionSheets(),vis,ec,...bxSheets(),...fxSheets(),...tpSheets(),sb])}
 
 async function readBackupFromXlsx(buf){const z=await unzip(buf);const wb=await z.get('xl/workbook.xml');const rels=await z.get('xl/_rels/workbook.xml.rels');const P=new DOMParser();
  const w=P.parseFromString(wb,'application/xml');let rid=null;for(const s of w.getElementsByTagName('sheet'))if(s.getAttribute('name')==='_sauvegarde')rid=s.getAttribute('r:id')||s.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id');
